@@ -121,9 +121,3 @@ On every push/PR to `main`: **`test`** job runs the pytest suite (with `AWS_DEFA
 ## Screenshots
 
 *(insert screenshots — suggested: API Gateway routes · Lambda config · DynamoDB tables · live curl output · CloudWatch alarms · CI green run · terraform apply)*
-
-## Known Limitations
-
-- Dedupe is check-then-act (documented residual race on simultaneous double-submits)
-- SNS has no subscription yet (alarms fire to an unread topic)
-- Cancel is two writes (status + count) with guards, not a transaction
