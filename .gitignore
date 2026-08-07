@@ -11,6 +11,15 @@ override.tf.json
 *_override.tf
 *_override.tf.json
 
+# Python
+venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# Lambda build artifacts
+.build/
+
 # OS
 .DS_Store
 

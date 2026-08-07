@@ -36,3 +36,49 @@ module "registrations_table" {
 
   tags = { Project = "event-ticketing-system", Table = "Registrations" }
 }
+
+module "events_lambda" {
+  source        = "./modules/lambda"
+  function_name = "events-handler"
+  source_dir    = "${path.module}/lambdas/events"
+
+  environment_variables = {
+    EVENTS_TABLE = module.events_table.table_name
+  }
+
+  iam_policy_statements = [
+    {
+      actions   = ["dynamodb:Scan"]
+      resources = [module.events_table.table_arn]
+    }
+  ]
+
+  tags = { Project = "event-ticketing-system", Function = "events" }
+}
+
+module "registrations_lambda" {
+  source        = "./modules/lambda"
+  function_name = "registrations-handler"
+  source_dir    = "${path.module}/lambdas/registrations"
+
+  environment_variables = {
+    EVENTS_TABLE        = module.events_table.table_name
+    REGISTRATIONS_TABLE = module.registrations_table.table_name
+  }
+
+  iam_policy_statements = [
+    {
+      actions = ["dynamodb:PutItem", "dynamodb:GetItem", "dynamodb:UpdateItem", "dynamodb:Query"]
+      resources = [
+        module.registrations_table.table_arn,
+        "${module.registrations_table.table_arn}/index/*"
+      ]
+    },
+    {
+      actions   = ["dynamodb:UpdateItem"]
+      resources = [module.events_table.table_arn]
+    }
+  ]
+
+  tags = { Project = "event-ticketing-system", Function = "registrations" }
+}
