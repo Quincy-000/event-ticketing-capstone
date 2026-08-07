@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Event Ticketing System — Architecture</title>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: #020617; font-family: 'JetBrains Mono', monospace; color: #e2e8f0; padding: 32px; }
+  .header { display: flex; align-items: center; gap: 12px; margin-bottom: 20px; }
+  .pulse { width: 10px; height: 10px; background: #22d3ee; border-radius: 50%; animation: pulse 1.8s infinite; }
+  @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.3; } }
+  h1 { font-size: 20px; color: #f8fafc; }
+  .subtitle { font-size: 11px; color: #64748b; margin-top: 4px; }
+  .card { background: #0f172a; border: 1px solid #1e293b; border-radius: 12px; padding: 20px; }
+  .cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-top: 20px; }
+  .card-header { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
+  .card-dot { width: 8px; height: 8px; border-radius: 50%; }
+  .card-dot.cyan { background: #22d3ee; } .card-dot.emerald { background: #34d399; }
+  .card-dot.violet { background: #a78bfa; } .card-dot.amber { background: #fbbf24; }
+  .card h3 { font-size: 13px; color: #f8fafc; }
+  .card li { font-size: 11px; color: #94a3b8; list-style: none; line-height: 1.8; }
+  .footer { margin-top: 16px; font-size: 10px; color: #475569; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="pulse"></div>
+  <div>
+    <h1>Event Registration &amp; Ticketing System — Architecture</h1>
+    <div class="subtitle">AWS Serverless · Terraform · GitHub Actions CI/CD · Azubi Africa Capstone</div>
+  </div>
+</div>
+
+<div class="card">
+<svg width="1200" height="860" viewBox="0 0 1200 860" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
+      <path d="M 40 0 L 0 0 0 40" fill="none" stroke="#1e293b" stroke-width="0.5"/>
+    </pattern>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#94a3b8"/>
+    </marker>
+    <marker id="arrow-dash" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#fbbf24"/>
+    </marker>
+    <marker id="arrow-emerald" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#34d399"/>
+    </marker>
+  </defs>
+
+  <rect width="1200" height="860" fill="url(#grid)"/>
+
+  <!-- ============ ARROWS (behind boxes) ============ -->
+  <!-- Client -> API GW -->
+  <line x1="310" y1="105" x2="462" y2="115" stroke="#94a3b8" stroke-width="1.5" marker-end="url(#arrow)"/>
+  <text x="330" y="92" fill="#94a3b8" font-size="9">HTTPS</text>
+
+  <!-- API GW -> Lambdas -->
+  <line x1="580" y1="192" x2="580" y2="272" stroke="#94a3b8" stroke-width="1.5" marker-end="url(#arrow)"/>
+  <text x="470" y="235" fill="#64748b" font-size="8">GET /events</text>
+  <line x1="850" y1="192" x2="850" y2="272" stroke="#94a3b8" stroke-width="1.5" marker-end="url(#arrow)"/>
+  <text x="720" y="235" fill="#64748b" font-size="8">POST · GET · DELETE</text>
+
+  <!-- Lambdas -> DynamoDB -->
+  <line x1="580" y1="412" x2="580" y2="482" stroke="#94a3b8" stroke-width="1.5" marker-end="url(#arrow)"/>
+  <text x="530" y="450" fill="#64748b" font-size="8">Scan</text>
+  <line x1="850" y1="412" x2="850" y2="482" stroke="#94a3b8" stroke-width="1.5" marker-end="url(#arrow)"/>
+  <text x="755" y="450" fill="#64748b" font-size="8">Put / Query / Update</text>
+
+  <!-- registrations -> Events (capacity decrement) -->
+  <line x1="728" y1="380" x2="708" y2="482" stroke="#34d399" stroke-width="1.2" stroke-dasharray="3,3" marker-end="url(#arrow-emerald)"/>
+  <text x="655" y="470" fill="#34d399" font-size="8">UpdateItem (count)</text>
+
+  <!-- Lambdas -> CloudWatch logs -->
+  <line x1="468" y1="330" x2="338" y2="330" stroke="#94a3b8" stroke-width="1.2" stroke-dasharray="3,3" marker-end="url(#arrow)"/>
+  <text x="370" y="320" fill="#64748b" font-size="8">logs / metrics</text>
+  <line x1="728" y1="370" x2="338" y2="370" stroke="#94a3b8" stroke-width="1.2" stroke-dasharray="3,3" marker-end="url(#arrow)"/>
+  <text x="440" y="362" fill="#64748b" font-size="8">REGISTRATION_FAILED → filter</text>
+
+  <!-- CloudWatch -> SNS -->
+  <line x1="190" y1="412" x2="190" y2="472" stroke="#94a3b8" stroke-width="1.5" marker-end="url(#arrow)"/>
+  <text x="70" y="445" fill="#64748b" font-size="8">alarm actions</text>
+
+  <!-- Tooling -> AWS (dashed provisioning) -->
+  <line x1="220" y1="690" x2="220" y2="672" stroke="#fbbf24" stroke-width="1.5" stroke-dasharray="5,4" marker-end="url(#arrow-dash)"/>
+  <text x="120" y="664" fill="#fbbf24" font-size="8">terraform apply — provisions all</text>
+  <line x1="700" y1="690" x2="700" y2="672" stroke="#22d3ee" stroke-width="1.5" stroke-dasharray="5,4" marker-end="url(#arrow-dash)"/>
+  <text x="575" y="664" fill="#22d3ee" font-size="8">push / PR → tests + validate</text>
+
+  <!-- ============ REGION BOUNDARY ============ -->
+  <rect x="30" y="35" width="940" height="640" fill="rgba(120,53,15,0.06)" stroke="#fbbf24" stroke-width="1.5" stroke-dasharray="8,4" rx="12"/>
+  <text x="48" y="62" fill="#fbbf24" font-size="11" font-weight="bold">AWS · us-east-1</text>
+
+  <!-- ============ COMPONENTS ============ -->
+  <!-- Client -->
+  <rect x="50" y="60" width="260" height="90" rx="6" fill="#0f172a"/>
+  <rect x="50" y="60" width="260" height="90" rx="6" fill="rgba(30,41,59,0.5)" stroke="#94a3b8" stroke-width="1.5"/>
+  <text x="180" y="95" fill="#e2e8f0" font-size="12" font-weight="bold" text-anchor="middle">CLIENT</text>
+  <text x="180" y="112" fill="#94a3b8" font-size="9" text-anchor="middle">curl · browser</text>
+  <text x="180" y="126" fill="#64748b" font-size="8" text-anchor="middle">HTTPS → REST API</text>
+
+  <!-- API Gateway -->
+  <rect x="470" y="60" width="420" height="130" rx="6" fill="#0f172a"/>
+  <rect x="470" y="60" width="420" height="130" rx="6" fill="rgba(120,53,15,0.3)" stroke="#fbbf24" stroke-width="1.5"/>
+  <text x="680" y="90" fill="#f8fafc" font-size="12" font-weight="bold" text-anchor="middle">API GATEWAY</text>
+  <text x="680" y="108" fill="#fbbf24" font-size="9" text-anchor="middle">REST API v1 · stage: dev</text>
+  <text x="680" y="126" fill="#e2e8f0" font-size="8" text-anchor="middle">GET /events</text>
+  <text x="680" y="140" fill="#e2e8f0" font-size="8" text-anchor="middle">POST /register</text>
+  <text x="680" y="154" fill="#e2e8f0" font-size="8" text-anchor="middle">GET /registrations/{email} · DELETE /registration/{id}</text>
+  <text x="680" y="172" fill="#64748b" font-size="8" text-anchor="middle">AWS_PROXY → Lambda integrations</text>
+
+  <!-- CloudWatch -->
+  <rect x="50" y="280" width="280" height="130" rx="6" fill="#0f172a"/>
+  <rect x="50" y="280" width="280" height="130" rx="6" fill="rgba(120,53,15,0.3)" stroke="#fbbf24" stroke-width="1.5"/>
+  <text x="190" y="310" fill="#f8fafc" font-size="12" font-weight="bold" text-anchor="middle">CLOUDWATCH</text>
+  <text x="190" y="328" fill="#fbbf24" font-size="9" text-anchor="middle">5 alarms · Errors / Throttles</text>
+  <text x="190" y="346" fill="#e2e8f0" font-size="8" text-anchor="middle">metric filter: REGISTRATION_FAILED</text>
+  <text x="190" y="362" fill="#e2e8f0" font-size="8" text-anchor="middle">≥3 in 5 min → ALARM</text>
+  <text x="190" y="380" fill="#64748b" font-size="8" text-anchor="middle">Lambda logs + metrics</text>
+
+  <!-- SNS -->
+  <rect x="50" y="480" width="280" height="90" rx="6" fill="#0f172a"/>
+  <rect x="50" y="480" width="280" height="90" rx="6" fill="rgba(251,146,60,0.3)" stroke="#fb923c" stroke-width="1.5"/>
+  <text x="190" y="512" fill="#f8fafc" font-size="12" font-weight="bold" text-anchor="middle">SNS</text>
+  <text x="190" y="530" fill="#fb923c" font-size="9" text-anchor="middle">event-ticketing-alarms</text>
+  <text x="190" y="546" fill="#64748b" font-size="8" text-anchor="middle">alarm notifications (sub pending)</text>
+
+  <!-- Lambda events -->
+  <rect x="470" y="280" width="230" height="130" rx="6" fill="#0f172a"/>
+  <rect x="470" y="280" width="230" height="130" rx="6" fill="rgba(6,78,59,0.4)" stroke="#34d399" stroke-width="1.5"/>
+  <text x="585" y="310" fill="#f8fafc" font-size="12" font-weight="bold" text-anchor="middle">LAMBDA</text>
+  <text x="585" y="328" fill="#34d399" font-size="9" text-anchor="middle">events-handler</text>
+  <text x="585" y="348" fill="#e2e8f0" font-size="8" text-anchor="middle">list events</text>
+  <text x="585" y="364" fill="#e2e8f0" font-size="8" text-anchor="middle">status: Available / Limited / Full</text>
+  <text x="585" y="382" fill="#64748b" font-size="8" text-anchor="middle">Python 3.12 · IAM: Scan only</text>
+
+  <!-- Lambda registrations -->
+  <rect x="730" y="280" width="240" height="130" rx="6" fill="#0f172a"/>
+  <rect x="730" y="280" width="240" height="130" rx="6" fill="rgba(6,78,59,0.4)" stroke="#34d399" stroke-width="1.5"/>
+  <text x="850" y="310" fill="#f8fafc" font-size="12" font-weight="bold" text-anchor="middle">LAMBDA</text>
+  <text x="850" y="328" fill="#34d399" font-size="9" text-anchor="middle">registrations-handler</text>
+  <text x="850" y="348" fill="#e2e8f0" font-size="8" text-anchor="middle">register · cancel · dedupe</text>
+  <text x="850" y="364" fill="#e2e8f0" font-size="8" text-anchor="middle">conditional writes (race-safe)</text>
+  <text x="850" y="382" fill="#64748b" font-size="8" text-anchor="middle">Python 3.12 · least-privilege IAM</text>
+
+  <!-- DynamoDB Events -->
+  <rect x="470" y="490" width="230" height="110" rx="6" fill="#0f172a"/>
+  <rect x="470" y="490" width="230" height="110" rx="6" fill="rgba(76,29,149,0.4)" stroke="#a78bfa" stroke-width="1.5"/>
+  <text x="585" y="520" fill="#f8fafc" font-size="12" font-weight="bold" text-anchor="middle">DYNAMODB</text>
+  <text x="585" y="538" fill="#a78bfa" font-size="9" text-anchor="middle">Events</text>
+  <text x="585" y="556" fill="#e2e8f0" font-size="8" text-anchor="middle">PK: eventId</text>
+  <text x="585" y="572" fill="#e2e8f0" font-size="8" text-anchor="middle">totalCapacity · registeredCount</text>
+
+  <!-- DynamoDB Registrations -->
+  <rect x="730" y="490" width="240" height="110" rx="6" fill="#0f172a"/>
+  <rect x="730" y="490" width="240" height="110" rx="6" fill="rgba(76,29,149,0.4)" stroke="#a78bfa" stroke-width="1.5"/>
+  <text x="850" y="520" fill="#f8fafc" font-size="12" font-weight="bold" text-anchor="middle">DYNAMODB</text>
+  <text x="850" y="538" fill="#a78bfa" font-size="9" text-anchor="middle">Registrations</text>
+  <text x="850" y="556" fill="#e2e8f0" font-size="8" text-anchor="middle">PK: registrationId</text>
+  <text x="850" y="572" fill="#e2e8f0" font-size="8" text-anchor="middle">GSI: email-index</text>
+
+  <!-- Terraform -->
+  <rect x="50" y="700" width="340" height="90" rx="6" fill="#0f172a"/>
+  <rect x="50" y="700" width="340" height="90" rx="6" fill="rgba(120,53,15,0.3)" stroke="#fbbf24" stroke-width="1.5"/>
+  <text x="220" y="732" fill="#f8fafc" font-size="12" font-weight="bold" text-anchor="middle">TERRAFORM</text>
+  <text x="220" y="750" fill="#fbbf24" font-size="9" text-anchor="middle">infrastructure as code</text>
+  <text x="220" y="766" fill="#e2e8f0" font-size="8" text-anchor="middle">modules: lambda · dynamodb</text>
+
+  <!-- GitHub Actions -->
+  <rect x="470" y="700" width="500" height="90" rx="6" fill="#0f172a"/>
+  <rect x="470" y="700" width="500" height="90" rx="6" fill="rgba(8,51,68,0.4)" stroke="#22d3ee" stroke-width="1.5"/>
+  <text x="720" y="732" fill="#f8fafc" font-size="12" font-weight="bold" text-anchor="middle">GITHUB ACTIONS — CI/CD</text>
+  <text x="720" y="750" fill="#22d3ee" font-size="9" text-anchor="middle">on push / PR to main</text>
+  <text x="720" y="766" fill="#e2e8f0" font-size="8" text-anchor="middle">job: test — pytest (8 tests) · job: terraform-validate</text>
+
+  <!-- ============ LEGEND (outside boundaries) ============ -->
+  <rect x="50" y="810" width="1100" height="34" rx="6" fill="#0f172a" stroke="#1e293b"/>
+  <rect x="70" y="820" width="12" height="12" fill="rgba(120,53,15,0.3)" stroke="#fbbf24"/>
+  <text x="88" y="830" fill="#94a3b8" font-size="9">AWS</text>
+  <rect x="140" y="820" width="12" height="12" fill="rgba(6,78,59,0.4)" stroke="#34d399"/>
+  <text x="158" y="830" fill="#94a3b8" font-size="9">Lambda/Backend</text>
+  <rect x="270" y="820" width="12" height="12" fill="rgba(76,29,149,0.4)" stroke="#a78bfa"/>
+  <text x="288" y="830" fill="#94a3b8" font-size="9">DynamoDB</text>
+  <rect x="380" y="820" width="12" height="12" fill="rgba(30,41,59,0.5)" stroke="#94a3b8"/>
+  <text x="398" y="830" fill="#94a3b8" font-size="9">External/Client</text>
+  <rect x="520" y="820" width="12" height="12" fill="rgba(251,146,60,0.3)" stroke="#fb923c"/>
+  <text x="538" y="830" fill="#94a3b8" font-size="9">SNS</text>
+  <line x1="620" y1="826" x2="650" y2="826" stroke="#94a3b8" stroke-width="1.5"/>
+  <text x="656" y="830" fill="#94a3b8" font-size="9">data flow</text>
+  <line x1="740" y1="826" x2="770" y2="826" stroke="#fbbf24" stroke-width="1.5" stroke-dasharray="5,4"/>
+  <text x="776" y="830" fill="#94a3b8" font-size="9">provisioning / CI</text>
+</svg>
+</div>
+
+<div class="cards">
+  <div class="card">
+    <div class="card-header"><div class="card-dot amber"></div><h3>100% Serverless</h3></div>
+    <ul>
+      <li>• API Gateway → Lambda → DynamoDB</li>
+      <li>• No servers to patch, scale, or babysit</li>
+      <li>• Pay-per-request billing (Free Tier friendly)</li>
+    </ul>
+  </div>
+  <div class="card">
+    <div class="card-header"><div class="card-dot emerald"></div><h3>Race-Safe Capacity Control</h3></div>
+    <ul>
+      <li>• DynamoDB conditional writes, not a badge</li>
+      <li>• One seat left → exactly one request wins</li>
+      <li>• Double-cancel can't underflow the count</li>
+    </ul>
+  </div>
+  <div class="card">
+    <div class="card-header"><div class="card-dot cyan"></div><h3>CI-Verified</h3></div>
+    <ul>
+      <li>• 8 tests run on every push to main</li>
+      <li>• Terraform validated on every push</li>
+      <li>• All infrastructure reproducible via tf apply</li>
+    </ul>
+  </div>
+</div>
+
+<div class="footer">event-ticketing-capstone · github.com/Quincy-000 · open the HTML in a browser and screenshot for README / presentation</div>
+
+</body>
+</html>
