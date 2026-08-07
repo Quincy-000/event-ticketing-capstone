@@ -53,23 +53,23 @@ This project removes the human from the hot path: a machine books seats atomical
 
 ```mermaid
 flowchart LR
-    C[Client<br/>curl / browser] -->|HTTPS| A[API Gateway<br/>REST API v1 · dev stage]
+    C["Client<br/>curl / browser"] -->|"HTTPS"| A["API Gateway<br/>REST API v1 · dev stage"]
 
-    A -->|GET /events| LE[Lambda<br/>events-handler]
-    A -->|POST /register| LR[Lambda<br/>registrations-handler]
-    A -->|GET /registrations/{email}| LR
-    A -->|DELETE /registration/{id}| LR
+    A -->|"GET /events"| LE["Lambda<br/>events-handler"]
+    A -->|"POST /register"| LR["Lambda<br/>registrations-handler"]
+    A -->|"GET /registrations/{email}"| LR
+    A -->|"DELETE /registration/{id}"| LR
 
-    LE -->|Scan| DE[(DynamoDB<br/>Events)]
-    LR -->|Put / Query / Update| DR[(DynamoDB<br/>Registrations)]
-    LR -->|UpdateItem · capacity| DE
+    LE -->|"Scan"| DE[("DynamoDB<br/>Events")]
+    LR -->|"Put / Query / Update"| DR[("DynamoDB<br/>Registrations")]
+    LR -->|"UpdateItem · capacity"| DE
 
-    LE -.->|logs / metrics| CW[CloudWatch<br/>5 alarms + metric filter]
-    LR -.->|REGISTRATION_FAILED| CW
-    CW -->|alarm actions| S[SNS<br/>event-ticketing-alarms]
+    LE -.->|"logs / metrics"| CW["CloudWatch<br/>5 alarms + metric filter"]
+    LR -.->|"REGISTRATION_FAILED"| CW
+    CW -->|"alarm actions"| S["SNS<br/>event-ticketing-alarms"]
 
-    TF[Terraform] -.->|provisions all infra| A
-    GHA[GitHub Actions<br/>test + terraform-validate] -.->|on push / PR| A
+    TF["Terraform"] -.->|"provisions all infra"| A
+    GHA["GitHub Actions<br/>test + terraform-validate"] -.->|"on push / PR"| A
 ```
 
 > 📊 **Full-resolution diagram:** open [`docs/architecture-diagram.html`](docs/architecture-diagram.html) in a browser (dark-themed, screenshot-ready).
