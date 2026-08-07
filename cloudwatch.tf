@@ -10,6 +10,12 @@ resource "aws_sns_topic" "alarms" {
   name = "event-ticketing-alarms"
 }
 
+resource "aws_sns_topic_subscription" "alarms_email" {
+  topic_arn = aws_sns_topic.alarms.arn
+  protocol  = "email"
+  endpoint  = "quincycudjoe1@gmail.com"
+}
+
 # ---------- Errors alarms ----------
 resource "aws_cloudwatch_metric_alarm" "lambda_errors" {
   for_each = local.lambda_functions
