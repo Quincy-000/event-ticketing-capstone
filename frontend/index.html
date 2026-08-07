@@ -1,0 +1,349 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Event Ticketing — Serverless Demo</title>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #020617;
+    --panel: #0f172a;
+    --border: #1e293b;
+    --text: #e2e8f0;
+    --muted: #94a3b8;
+    --dim: #64748b;
+    --cyan: #22d3ee;
+    --emerald: #34d399;
+    --amber: #fbbf24;
+    --rose: #fb7185;
+    --violet: #a78bfa;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: var(--bg);
+    background-image:
+      linear-gradient(rgba(30,41,59,0.35) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(30,41,59,0.35) 1px, transparent 1px);
+    background-size: 40px 40px;
+    color: var(--text);
+    font-family: 'JetBrains Mono', monospace;
+    min-height: 100vh;
+    padding: 32px 20px 60px;
+  }
+  .container { max-width: 1080px; margin: 0 auto; }
+
+  /* Header */
+  header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 28px; flex-wrap: wrap; gap: 12px; }
+  .brand { display: flex; align-items: center; gap: 14px; }
+  .brand-dot { width: 12px; height: 12px; border-radius: 50%; background: var(--cyan); box-shadow: 0 0 18px var(--cyan); animation: pulse 2s infinite; }
+  @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.35; } }
+  .brand h1 { font-size: 20px; font-weight: 800; letter-spacing: -0.5px; }
+  .brand p { font-size: 10px; color: var(--dim); margin-top: 3px; }
+  .api-badge {
+    font-size: 10px; color: var(--emerald); border: 1px solid rgba(52,211,153,0.4);
+    background: rgba(6,78,59,0.3); padding: 6px 12px; border-radius: 20px; letter-spacing: 0.5px;
+  }
+  .api-badge span { color: var(--muted); }
+
+  /* Email bar */
+  .email-bar {
+    display: flex; align-items: center; gap: 10px; background: var(--panel);
+    border: 1px solid var(--border); border-radius: 10px; padding: 12px 16px; margin-bottom: 28px; flex-wrap: wrap;
+  }
+  .email-bar label { font-size: 11px; color: var(--dim); text-transform: uppercase; letter-spacing: 1px; }
+  .email-bar input {
+    flex: 1; min-width: 220px; background: #020617; border: 1px solid var(--border); color: var(--text);
+    font-family: inherit; font-size: 13px; padding: 8px 12px; border-radius: 8px; outline: none;
+    transition: border-color 0.2s;
+  }
+  .email-bar input:focus { border-color: var(--cyan); }
+  .email-hint { font-size: 10px; color: var(--dim); }
+
+  /* Section headers */
+  .section { display: flex; align-items: center; gap: 10px; margin: 28px 0 14px; }
+  .section .dot { width: 8px; height: 8px; border-radius: 50%; }
+  .dot.emerald { background: var(--emerald); } .dot.amber { background: var(--amber); } .dot.cyan { background: var(--cyan); }
+  .section h2 { font-size: 13px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; color: #f8fafc; }
+  .section .count { font-size: 10px; color: var(--dim); }
+
+  /* Event cards */
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 16px; }
+  .card {
+    background: var(--panel); border: 1px solid var(--border); border-radius: 12px; padding: 18px;
+    display: flex; flex-direction: column; gap: 10px; transition: transform 0.15s, border-color 0.15s;
+  }
+  .card:hover { transform: translateY(-2px); border-color: #334155; }
+  .card-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; }
+  .card h3 { font-size: 14px; font-weight: 700; line-height: 1.3; }
+  .card .date { font-size: 10px; color: var(--dim); margin-top: 4px; }
+  .badge { display: inline-flex; align-items: center; gap: 6px; font-size: 10px; font-weight: 700; padding: 4px 10px; border-radius: 20px; white-space: nowrap; }
+  .badge .bdot { width: 6px; height: 6px; border-radius: 50%; }
+  .badge.available { color: var(--emerald); background: rgba(6,78,59,0.3); border: 1px solid rgba(52,211,153,0.4); }
+  .badge.available .bdot { background: var(--emerald); }
+  .badge.limited { color: var(--amber); background: rgba(120,53,15,0.25); border: 1px solid rgba(251,191,36,0.4); }
+  .badge.limited .bdot { background: var(--amber); }
+  .badge.full { color: var(--rose); background: rgba(136,19,55,0.25); border: 1px solid rgba(251,113,133,0.4); }
+  .badge.full .bdot { background: var(--rose); }
+  .capacity-label { display: flex; justify-content: space-between; font-size: 10px; color: var(--dim); }
+  .capacity-label b { color: var(--muted); font-weight: 500; }
+  .bar { height: 6px; background: #1e293b; border-radius: 4px; overflow: hidden; }
+  .bar-fill { height: 100%; border-radius: 4px; transition: width 0.4s ease; }
+  .fill-available { background: linear-gradient(90deg, var(--emerald), #6ee7b7); }
+  .fill-limited { background: linear-gradient(90deg, var(--amber), #fde047); }
+  .fill-full { background: linear-gradient(90deg, var(--rose), #fda4af); }
+  .btn {
+    font-family: inherit; font-size: 12px; font-weight: 700; padding: 9px 14px; border-radius: 8px;
+    border: 1px solid transparent; cursor: pointer; transition: all 0.15s; letter-spacing: 0.3px;
+  }
+  .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+  .btn-primary { background: var(--emerald); color: #022c22; }
+  .btn-primary:hover:not(:disabled) { background: #6ee7b7; }
+  .btn-ghost { background: transparent; color: var(--rose); border-color: rgba(251,113,133,0.4); }
+  .btn-ghost:hover:not(:disabled) { background: rgba(136,19,55,0.25); }
+
+  /* Registrations list */
+  .regs { display: flex; flex-direction: column; gap: 10px; }
+  .reg {
+    display: flex; justify-content: space-between; align-items: center; background: var(--panel);
+    border: 1px solid var(--border); border-radius: 10px; padding: 14px 16px; gap: 12px;
+  }
+  .reg .reg-main { min-width: 0; }
+  .reg .reg-event { font-size: 13px; font-weight: 700; }
+  .reg .reg-meta { font-size: 10px; color: var(--dim); margin-top: 3px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .reg .status-chip { font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: var(--emerald); border: 1px solid rgba(52,211,153,0.4); padding: 3px 8px; border-radius: 12px; }
+  .reg .btn { padding: 7px 12px; }
+
+  .empty { text-align: center; color: var(--dim); font-size: 12px; padding: 30px 0; border: 1px dashed var(--border); border-radius: 12px; }
+  .empty b { color: var(--muted); }
+
+  /* Toasts */
+  .toasts { position: fixed; top: 20px; right: 20px; display: flex; flex-direction: column; gap: 10px; z-index: 100; }
+  .toast {
+    background: var(--panel); border: 1px solid var(--border); border-left: 3px solid var(--cyan);
+    padding: 12px 16px; border-radius: 10px; font-size: 12px; max-width: 340px; box-shadow: 0 8px 30px rgba(0,0,0,0.5);
+    animation: slideIn 0.25s ease; display: flex; align-items: center; gap: 10px;
+  }
+  .toast.success { border-left-color: var(--emerald); }
+  .toast.error { border-left-color: var(--rose); }
+  .toast.info { border-left-color: var(--cyan); }
+  .toast.warn { border-left-color: var(--amber); }
+  @keyframes slideIn { from { transform: translateX(30px); opacity: 0; } to { transform: none; opacity: 1; } }
+  .toast.out { animation: slideOut 0.25s ease forwards; }
+  @keyframes slideOut { to { transform: translateX(30px); opacity: 0; } }
+
+  footer { margin-top: 40px; text-align: center; font-size: 10px; color: var(--dim); }
+  footer a { color: var(--cyan); text-decoration: none; }
+  .loading { text-align: center; color: var(--dim); font-size: 12px; padding: 30px 0; }
+  .spin { display: inline-block; width: 12px; height: 12px; border: 2px solid var(--border); border-top-color: var(--cyan); border-radius: 50%; animation: spin 0.8s linear infinite; vertical-align: -2px; margin-right: 8px; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+</style>
+</head>
+<body>
+<div class="container">
+  <header>
+    <div class="brand">
+      <div class="brand-dot"></div>
+      <div>
+        <h1>Event Ticketing</h1>
+        <p>Serverless registration · API Gateway → Lambda → DynamoDB</p>
+      </div>
+    </div>
+    <div class="api-badge">API <span id="api-status">checking…</span></div>
+  </header>
+
+  <div class="email-bar">
+    <label>Your email</label>
+    <input type="email" id="email" placeholder="you@example.com" autocomplete="email">
+    <span class="email-hint">stored locally — used to register &amp; fetch your tickets</span>
+  </div>
+
+  <div class="section">
+    <div class="dot emerald"></div>
+    <h2>Upcoming Events</h2>
+    <span class="count" id="events-count"></span>
+  </div>
+  <div class="grid" id="events"></div>
+
+  <div class="section">
+    <div class="dot cyan"></div>
+    <h2>My Registrations</h2>
+    <span class="count" id="regs-count"></span>
+  </div>
+  <div id="regs" class="regs"></div>
+
+  <footer>
+    <a href="https://github.com/Quincy-000/event-ticketing-capstone" target="_blank">github.com/Quincy-000/event-ticketing-capstone</a>
+    &nbsp;·&nbsp; Azubi Africa AWS capstone · static frontend on S3
+  </footer>
+</div>
+
+<div class="toasts" id="toasts"></div>
+
+<script>
+const API = "https://qhmocsswo9.execute-api.us-east-1.amazonaws.com/dev";
+
+const $ = (id) => document.getElementById(id);
+let email = localStorage.getItem("et-email") || "";
+let eventMap = {};
+
+// ---------- toasts ----------
+function toast(msg, type = "info") {
+  const t = document.createElement("div");
+  t.className = `toast ${type}`;
+  t.textContent = msg;
+  $("toasts").appendChild(t);
+  setTimeout(() => { t.classList.add("out"); setTimeout(() => t.remove(), 250); }, 3800);
+}
+
+// ---------- fetch helpers ----------
+async function api(path, opts = {}) {
+  const res = await fetch(API + path, opts);
+  let body = {};
+  try { body = await res.json(); } catch (e) {}
+  return { status: res.status, body };
+}
+
+async function checkApi() {
+  try {
+    const { status } = await api("/events");
+    $("api-status").textContent = status === 200 ? "connected ✓" : "error (" + status + ")";
+    $("api-status").style.color = status === 200 ? "#34d399" : "#fb7185";
+  } catch (e) {
+    $("api-status").textContent = "unreachable ✗";
+    $("api-status").style.color = "#fb7185";
+  }
+}
+
+// ---------- rendering ----------
+function statusClass(s) { return String(s || "").toLowerCase(); }
+function fillClass(s) {
+  const c = statusClass(s);
+  return c === "full" ? "fill-full" : c === "limited" ? "fill-limited" : "fill-available";
+}
+
+function renderEvents(events) {
+  eventMap = {};
+  events.forEach(e => eventMap[e.eventId] = e);
+  $("events-count").textContent = events.length + " shown";
+  const grid = $("events");
+  if (!events.length) {
+    grid.innerHTML = `<div class="empty"><b>No events yet.</b><br>Deploy, then run <code>python seed.py</code> to populate the table.</div>`;
+    return;
+  }
+  grid.innerHTML = events.map(e => {
+    const pct = Math.min(100, Math.round((e.registeredCount / e.totalCapacity) * 100));
+    const disabled = statusClass(e.status) === "full" ? "disabled" : "";
+    return `
+    <div class="card">
+      <div class="card-top">
+        <div>
+          <h3>${esc(e.eventName)}</h3>
+          <div class="date">${esc(e.eventDate)}</div>
+        </div>
+        <span class="badge ${statusClass(e.status)}"><span class="bdot"></span>${esc(e.status)}</span>
+      </div>
+      <div class="capacity-label">
+        <span>capacity</span><b>${e.registeredCount} / ${e.totalCapacity} booked</b>
+      </div>
+      <div class="bar"><div class="bar-fill ${fillClass(e.status)}" style="width:${pct}%"></div></div>
+      <button class="btn btn-primary" ${disabled} onclick="register('${e.eventId}')">Register</button>
+    </div>`;
+  }).join("");
+}
+
+function renderRegs(regs) {
+  $("regs-count").textContent = regs.length + " total";
+  const el = $("regs");
+  if (!regs.length) {
+    el.innerHTML = `<div class="empty">No confirmed registrations for this email.</div>`;
+    return;
+  }
+  el.innerHTML = regs.map(r => {
+    const ev = eventMap[r.eventId] || {};
+    return `
+    <div class="reg">
+      <div class="reg-main">
+        <div class="reg-event">${esc(ev.eventName || r.eventId)}</div>
+        <div class="reg-meta">${esc(r.registrationId)} · ${esc(r.registeredAt || "")}</div>
+      </div>
+      <span class="status-chip">${esc(r.status)}</span>
+      <button class="btn btn-ghost" onclick="cancel('${r.registrationId}', '${ev.eventName || r.eventId}')">Cancel</button>
+    </div>`;
+  }).join("");
+}
+
+function esc(s) { return String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
+
+// ---------- actions ----------
+async function refresh() {
+  const { status, body } = await api("/events");
+  if (status === 200) renderEvents(body.events || []);
+  else toast("Failed to load events (" + status + ")", "error");
+  if (email) loadRegs();
+}
+
+async function loadRegs(retries = 2) {
+  const enc = encodeURIComponent(email);
+  const { status, body } = await api("/registrations/" + enc);
+  // GSI is eventually consistent — a fresh write can take a beat to appear.
+  if (status === 200 && (!body.registrations || body.registrations.length === 0) && retries > 0) {
+    setTimeout(() => loadRegs(retries - 1), 800);
+    return;
+  }
+  if (status === 200) renderRegs(body.registrations || []);
+}
+
+function needEmail() {
+  if (!email || !email.includes("@")) {
+    toast("Enter your email first (top bar)", "warn");
+    $("email").focus();
+    return false;
+  }
+  return true;
+}
+
+async function register(eventId) {
+  if (!needEmail()) return;
+  const ev = eventMap[eventId] || {};
+  const { status, body } = await api("/register", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ eventId, email }),
+  });
+  if (status === 201) {
+    toast(`Registered for "${ev.eventName || eventId}" ✓`, "success");
+    refresh();
+  } else if (status === 409) {
+    toast(body.error || "Registration rejected", "error");
+    refresh();
+  } else {
+    toast("Something went wrong (" + status + ")", "error");
+  }
+}
+
+async function cancel(regId, name) {
+  const { status, body } = await api("/registration/" + regId, { method: "DELETE" });
+  if (status === 200) {
+    toast(`Cancelled "${name}" — seat returned to the pool`, "success");
+  } else if (status === 409) {
+    toast(body.error || "Already cancelled", "warn");
+  } else {
+    toast("Failed to cancel (" + status + ")", "error");
+  }
+  refresh();
+}
+
+// ---------- init ----------
+$("email").value = email;
+$("email").addEventListener("input", (e) => {
+  email = e.target.value.trim();
+  localStorage.setItem("et-email", email);
+  if (email.includes("@")) loadRegs();
+});
+
+checkApi();
+refresh();
+</script>
+</body>
+</html>

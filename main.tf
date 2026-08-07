@@ -134,6 +134,23 @@ resource "aws_api_gateway_integration" "post_register" {
   uri                     = module.registrations_lambda.invoke_arn
 }
 
+# CORS preflight for /register (POST + JSON triggers a browser preflight)
+resource "aws_api_gateway_method" "options_register" {
+  rest_api_id   = aws_api_gateway_rest_api.this.id
+  resource_id   = aws_api_gateway_resource.register.id
+  http_method   = "OPTIONS"
+  authorization = "NONE"
+}
+
+resource "aws_api_gateway_integration" "options_register" {
+  rest_api_id             = aws_api_gateway_rest_api.this.id
+  resource_id             = aws_api_gateway_resource.register.id
+  http_method             = aws_api_gateway_method.options_register.http_method
+  integration_http_method = "POST"
+  type                    = "AWS_PROXY"
+  uri                     = module.registrations_lambda.invoke_arn
+}
+
 # /registrations/{email}
 resource "aws_api_gateway_resource" "registrations" {
   rest_api_id = aws_api_gateway_rest_api.this.id
@@ -192,6 +209,23 @@ resource "aws_api_gateway_integration" "delete_registration" {
   uri                     = module.registrations_lambda.invoke_arn
 }
 
+# CORS preflight for /registration/{id} (DELETE triggers a browser preflight)
+resource "aws_api_gateway_method" "options_registration_id" {
+  rest_api_id   = aws_api_gateway_rest_api.this.id
+  resource_id   = aws_api_gateway_resource.registration_id.id
+  http_method   = "OPTIONS"
+  authorization = "NONE"
+}
+
+resource "aws_api_gateway_integration" "options_registration_id" {
+  rest_api_id             = aws_api_gateway_rest_api.this.id
+  resource_id             = aws_api_gateway_resource.registration_id.id
+  http_method             = aws_api_gateway_method.options_registration_id.http_method
+  integration_http_method = "POST"
+  type                    = "AWS_PROXY"
+  uri                     = module.registrations_lambda.invoke_arn
+}
+
 # deployment + stage
 resource "aws_api_gateway_deployment" "this" {
   rest_api_id = aws_api_gateway_rest_api.this.id
@@ -202,6 +236,8 @@ resource "aws_api_gateway_deployment" "this" {
       aws_api_gateway_integration.post_register,
       aws_api_gateway_integration.get_registrations,
       aws_api_gateway_integration.delete_registration,
+      aws_api_gateway_integration.options_register,
+      aws_api_gateway_integration.options_registration_id,
     ]))
   }
 

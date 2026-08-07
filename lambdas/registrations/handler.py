@@ -2,6 +2,7 @@ import json
 import os
 import uuid
 from datetime import datetime, timezone
+from urllib.parse import unquote
 
 import boto3
 from botocore.exceptions import ClientError
@@ -20,6 +21,8 @@ def response(status_code: int, body: dict) -> dict:
         "headers": {
             "Content-Type": "application/json",
             "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Methods": "OPTIONS,POST,GET,DELETE",
+            "Access-Control-Allow-Headers": "Content-Type",
         },
         "body": json.dumps(body),
     }
@@ -104,7 +107,9 @@ def register(event):
 
 # ---------- GET /registrations/{email} ----------
 def get_by_email(event):
-    email = event.get("pathParameters", {}).get("email")
+    # API Gateway v1 does NOT decode path params (e.g. %40 stays literal),
+    # so decode here — handles both raw and percent-encoded callers.
+    email = unquote(event.get("pathParameters", {}).get("email") or "")
     if not email:
         return response(400, {"error": "email path parameter is required"})
 
@@ -176,5 +181,9 @@ def handler(event, context):
         return get_by_email(event)
     elif method == "DELETE":
         return cancel(event)
+    elif method == "OPTIONS":
+        # Browser CORS preflight — the response helper already carries the
+        # Allow-Origin/Methods/Headers; nothing else to do here.
+        return response(200, {})
     else:
         return response(405, {"error": f"Method {method} not allowed"})

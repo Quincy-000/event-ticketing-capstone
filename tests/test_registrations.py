@@ -162,3 +162,37 @@ def test_double_cancel(tables):
 
     count = tables.Table("Events").get_item(Key={"eventId": "e4"})["Item"]["registeredCount"]
     assert count == 0  # decremented once, not twice
+
+
+def test_options_preflight_returns_cors_headers(tables):
+    """Browser CORS preflight must succeed with the right headers."""
+    h = load_handler("registrations")
+    result = h.handler({"httpMethod": "OPTIONS"}, {})
+
+    assert result["statusCode"] == 200
+    assert result["headers"]["Access-Control-Allow-Origin"] == "*"
+    assert "POST" in result["headers"]["Access-Control-Allow-Methods"]
+    assert "DELETE" in result["headers"]["Access-Control-Allow-Methods"]
+    assert "Content-Type" in result["headers"]["Access-Control-Allow-Headers"]
+
+
+def test_get_by_email_handles_percent_encoded_email(tables):
+    """API Gateway v1 passes %40 literally — the handler must decode it."""
+    tables.Table("Events").put_item(Item={
+        "eventId": "e6", "totalCapacity": 10, "registeredCount": 1,
+    })
+    tables.Table("Registrations").put_item(Item={
+        "registrationId": "reg-enc", "eventId": "e6",
+        "email": "encoded@example.com", "status": "confirmed",
+    })
+
+    h = load_handler("registrations")
+    result = h.handler({
+        "httpMethod": "GET",
+        "pathParameters": {"email": "encoded%40example.com"},
+    }, {})
+
+    assert result["statusCode"] == 200
+    regs = json.loads(result["body"])["registrations"]
+    assert len(regs) == 1
+    assert regs[0]["registrationId"] == "reg-enc"

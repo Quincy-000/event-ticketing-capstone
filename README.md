@@ -3,6 +3,7 @@
 A fully serverless event registration API on AWS (API Gateway → Lambda → DynamoDB) that replaces a manual Forms + Excel workflow with a scalable, race-safe REST API. Infrastructure is defined with Terraform and verified by a GitHub Actions CI pipeline.
 
 **Live API (dev stage):** `https://qhmocsswo9.execute-api.us-east-1.amazonaws.com/dev` *(yours will differ — see `terraform output api_base_url`)*
+**Live frontend:** `http://event-ticketing-frontend-quincy-000.s3-website-us-east-1.amazonaws.com` *(static S3 site calling the API — see `terraform output frontend_url`)*
 
 ---
 
