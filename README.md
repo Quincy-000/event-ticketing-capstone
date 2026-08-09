@@ -27,6 +27,7 @@ flowchart LR
     CW -->|"alarm actions"| S["SNS<br/>event-ticketing-alarms"]
 
     TF["Terraform"] -.->|"provisions all infra"| A
+    TF -.->|"provisions"| BD[("AWS Budgets<br/>$10/mo · alerts")]
     GHA["GitHub Actions<br/>test + terraform-validate"] -.->|"on push / PR"| A
 ```
 
@@ -40,6 +41,7 @@ Full-resolution visual: [`docs/architecture-diagram.html`](docs/architecture-dia
 | Compute | AWS Lambda (Python 3.12) |
 | Data | DynamoDB (on-demand, 2 tables + 1 GSI) |
 | Observability | CloudWatch (alarms, metric filter) + SNS |
+| Cost tracking | AWS Budgets ($10/mo — forecast + actual alerts) |
 | IaC | Terraform (AWS ~> 6.0, archive ~> 2.0) |
 | CI/CD | GitHub Actions (pytest + terraform validate) |
 | Tests | pytest + moto (offline AWS mocking) |
@@ -79,6 +81,7 @@ Errors: `400` invalid input · `409` full/duplicate/already-cancelled · `404` n
 - **Confirmed-only reads** — `GET /registrations/{email}` filters out cancelled rows.
 - **Least-privilege IAM** — each Lambda's policy is scoped to exactly the tables/actions it uses.
 - **REST API v1** — matches the brief's "REST endpoints" requirement.
+- **Cost tracking** — AWS Budgets caps spend at $10/month with a forecast alert at 80% and an actual alert at 100%; live forecast for this stack is ~$0.79/month.
 
 ## Project Structure
 
@@ -88,9 +91,9 @@ Errors: `400` invalid input · `409` full/duplicate/already-cancelled · `404` n
 │   ├── events/handler.py       # GET /events
 │   └── registrations/handler.py # register / list / cancel
 ├── modules/                    # reusable dynamodb + lambda modules
-├── tests/                      # 8 tests (pytest + moto)
+├── tests/                      # 10 tests (pytest + moto)
 ├── docs/architecture-diagram.html
-├── cloudwatch.tf · main.tf · versions.tf
+├── budgets.tf · cloudwatch.tf · main.tf · versions.tf
 ├── seed.py                     # sample event data
 └── README.md
 ```
@@ -100,7 +103,7 @@ Errors: `400` invalid input · `409` full/duplicate/already-cancelled · `404` n
 ```bash
 python3 -m venv venv && source venv/bin/activate
 pip install boto3 moto pytest
-python -m pytest tests -q        # 8 passed (mocked AWS — no account needed)
+python -m pytest tests -q        # 10 passed (mocked AWS — no account needed)
 ```
 
 ## Deployment
@@ -118,6 +121,8 @@ On every push/PR to `main`: **`test`** job runs the pytest suite (with `AWS_DEFA
 ## Monitoring
 
 5 CloudWatch alarms: Lambda `Errors` and `Throttles` (`> 0`) for both functions, plus a custom `REGISTRATION_FAILED` metric filter alarm (`≥ 3` in 5 min). All publish to SNS `event-ticketing-alarms` (email subscription; confirm via the link AWS emails you after deploy).
+
+**Cost guardrail:** AWS Budgets caps monthly spend at $10 with alerts at 80% (forecast) and 100% (actual) — email to the same address.
 
 ## Screenshots
 
