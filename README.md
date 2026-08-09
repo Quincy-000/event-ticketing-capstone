@@ -102,6 +102,8 @@ On every push/PR to `main`: **`test`** job runs the pytest suite (with `AWS_DEFA
 
 5 CloudWatch alarms: Lambda `Errors` and `Throttles` (`> 0`) for both functions, plus a custom `REGISTRATION_FAILED` metric filter alarm (`≥ 3` in 5 min). All publish to SNS `event-ticketing-alarms` (email subscription; confirm via the link AWS emails you after deploy).
 
+Failed registrations are returned to the client immediately with a specific error (`400` validation · `409` full/duplicate · `500` failure) and displayed in the frontend UI. The `REGISTRATION_FAILED` alarm is a **pattern detector for operators** — it fires when 3+ capacity rejections occur within 5 minutes, surfacing capacity pressure or systemic failures rather than individual user rejections (which are expected business outcomes the client sees and resolves themselves).
+
 **Cost guardrail:** AWS Budgets caps monthly spend at $10 with alerts at 80% (forecast) and 100% (actual) — email to the same address.
 
 ## Screenshots
