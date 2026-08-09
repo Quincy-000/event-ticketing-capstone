@@ -117,6 +117,10 @@ Failed registrations are returned to the client immediately with a specific erro
 <img width="1365" height="652" alt="image" src="https://github.com/user-attachments/assets/c8dd1598-0ba0-483f-b9e9-9c77f803615d" />
 <img width="1352" height="639" alt="image" src="https://github.com/user-attachments/assets/dd0f44b9-2992-4a0f-a3bd-9eee09675ff7" />
 <img width="1365" height="288" alt="image" src="https://github.com/user-attachments/assets/b1cbccfd-902d-43bb-a50a-7e28c04e7cb4" />
+<img width="1038" height="705" alt="image" src="https://github.com/user-attachments/assets/4a6c99a0-95ce-441c-bd5d-de09e361af95" />
+<img width="1361" height="621" alt="image" src="https://github.com/user-attachments/assets/b5bb0df7-2f4a-486a-9434-f8f72eb5e6b8" />
+
+
 
 
 
