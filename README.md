@@ -9,7 +9,8 @@ A fully serverless event registration API on AWS (API Gateway → Lambda → Dyn
 
 ## Architecture
 
- <img width="1239" height="1415" alt="image" src="https://github.com/user-attachments/assets/4a85bb43-7965-4531-913a-59a867ef4085" />
+ <img width="700" height="799" alt="image" src="https://github.com/user-attachments/assets/af849531-86d4-4817-a9ec-facbb7e06ce0" />
+
 
 
 ## Tech Stack
