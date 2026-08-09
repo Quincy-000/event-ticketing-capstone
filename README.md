@@ -109,6 +109,22 @@ Failed registrations are returned to the client immediately with a specific erro
 ## Screenshots
 
 <img width="1169" height="389" alt="image" src="https://github.com/user-attachments/assets/3a352363-3968-4c68-8d8f-051a716407c4" />
+<img width="1365" height="309" alt="image" src="https://github.com/user-attachments/assets/2af7e926-b455-47fe-b82d-ad5821e73894" />
+<img width="1126" height="555" alt="image" src="https://github.com/user-attachments/assets/94d72c43-002b-4a13-8006-01a17db69a45" />
+<img width="1365" height="386" alt="image" src="https://github.com/user-attachments/assets/ef298fe9-1ddf-4a06-9ff8-c84bb35dcb5f" />
+<img width="1041" height="617" alt="image" src="https://github.com/user-attachments/assets/9dc77d1f-33e4-4db8-b571-422abea718fe" />
+<img width="1357" height="570" alt="image" src="https://github.com/user-attachments/assets/6dea468e-345e-4dc6-addb-edde63b3fac2" />
+<img width="1365" height="652" alt="image" src="https://github.com/user-attachments/assets/c8dd1598-0ba0-483f-b9e9-9c77f803615d" />
+<img width="1352" height="639" alt="image" src="https://github.com/user-attachments/assets/dd0f44b9-2992-4a0f-a3bd-9eee09675ff7" />
+<img width="1365" height="288" alt="image" src="https://github.com/user-attachments/assets/b1cbccfd-902d-43bb-a50a-7e28c04e7cb4" />
+
+
+
+
+
+
+
+
 
 
 *(insert screenshots — suggested: API Gateway routes · Lambda config · DynamoDB tables · live curl output · CloudWatch alarms · CI green run · terraform apply)*
