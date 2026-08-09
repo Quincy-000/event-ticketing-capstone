@@ -9,29 +9,8 @@ A fully serverless event registration API on AWS (API Gateway → Lambda → Dyn
 
 ## Architecture
 
-```mermaid
-flowchart LR
-    C["Client<br/>curl / browser"] -->|"HTTPS"| A["API Gateway<br/>REST API v1 · dev stage"]
+ <img width="1239" height="1415" alt="image" src="https://github.com/user-attachments/assets/4a85bb43-7965-4531-913a-59a867ef4085" />
 
-    A -->|"GET /events"| LE["Lambda<br/>events-handler"]
-    A -->|"POST /register"| LR["Lambda<br/>registrations-handler"]
-    A -->|"GET /registrations/{email}"| LR
-    A -->|"DELETE /registration/{id}"| LR
-
-    LE -->|"Scan"| DE[("DynamoDB<br/>Events")]
-    LR -->|"Put / Query / Update"| DR[("DynamoDB<br/>Registrations")]
-    LR -->|"UpdateItem · capacity"| DE
-
-    LE -.->|"logs / metrics"| CW["CloudWatch<br/>5 alarms + metric filter"]
-    LR -.->|"REGISTRATION_FAILED"| CW
-    CW -->|"alarm actions"| S["SNS<br/>event-ticketing-alarms"]
-
-    TF["Terraform"] -.->|"provisions all infra"| A
-    TF -.->|"provisions"| BD[("AWS Budgets<br/>$10/mo · alerts")]
-    GHA["GitHub Actions<br/>test + terraform-validate"] -.->|"on push / PR"| A
-```
-
-Full-resolution visual: [`docs/architecture-diagram.html`](docs/architecture-diagram.html) (open in a browser, screenshot-ready).
 
 ## Tech Stack
 
