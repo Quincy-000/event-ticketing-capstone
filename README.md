@@ -120,15 +120,3 @@ Failed registrations are returned to the client immediately with a specific erro
 <img width="1038" height="705" alt="image" src="https://github.com/user-attachments/assets/4a6c99a0-95ce-441c-bd5d-de09e361af95" />
 <img width="1361" height="621" alt="image" src="https://github.com/user-attachments/assets/b5bb0df7-2f4a-486a-9434-f8f72eb5e6b8" />
 
-
-
-
-
-
-
-
-
-
-
-
-*(insert screenshots — suggested: API Gateway routes · Lambda config · DynamoDB tables · live curl output · CloudWatch alarms · CI green run · terraform apply)*
