@@ -101,6 +101,10 @@
   .btn-primary:hover:not(:disabled) { background: #6ee7b7; }
   .btn-ghost { background: transparent; color: var(--rose); border-color: rgba(251,113,133,0.4); }
   .btn-ghost:hover:not(:disabled) { background: rgba(136,19,55,0.25); }
+  .btn-danger { background: transparent; color: var(--rose); border: 1px solid rgba(251,113,133,0.5); }
+  .btn-danger:hover:not(:disabled) { background: rgba(136,19,55,0.3); }
+  .card-actions { display: flex; gap: 8px; align-items: center; }
+  .card-actions .btn { flex: 1; }
 
   /* Registrations list */
   .regs { display: flex; flex-direction: column; gap: 10px; }
@@ -190,6 +194,7 @@ const $ = (id) => document.getElementById(id);
 let token = localStorage.getItem("et-token") || "";
 let email = localStorage.getItem("et-email") || "";
 let eventMap = {};
+let myRegs = {}; // eventId -> registrationId (this user's confirmed registrations)
 
 // ---------- auth ----------
 function loginUrl() {
@@ -284,8 +289,18 @@ function renderEvents(events) {
   grid.innerHTML = events.map(e => {
     const pct = Math.min(100, Math.round((e.registeredCount / e.totalCapacity) * 100));
     const isFull = statusClass(e.status) === "full";
+    const regId = myRegs[e.eventId];
+    const registered = !!regId;
     const disabled = (isFull || !signedIn) ? "disabled" : "";
     const title = !signedIn ? `title="Sign in to register"` : "";
+    const actions = registered
+      ? `<div class="card-actions">
+          <button class="btn btn-primary" disabled title="Registered">Registered ✓</button>
+          <button class="btn btn-danger" onclick="cancel('${regId}', '${esc(e.eventName)}')">Cancel</button>
+        </div>`
+      : `<div class="card-actions">
+          <button class="btn btn-primary" ${disabled} ${title} onclick="register('${e.eventId}')">Register</button>
+        </div>`;
     return `
     <div class="card">
       <div class="card-top">
@@ -299,7 +314,7 @@ function renderEvents(events) {
         <span>capacity</span><b>${e.registeredCount} / ${e.totalCapacity} booked</b>
       </div>
       <div class="bar"><div class="bar-fill ${fillClass(e.status)}" style="width:${pct}%"></div></div>
-      <button class="btn btn-primary" ${disabled} ${title} onclick="register('${e.eventId}')">Register</button>
+      ${actions}
     </div>`;
   }).join("");
 }
@@ -346,7 +361,13 @@ async function loadRegs(retries = 2) {
     setTimeout(() => loadRegs(retries - 1), 800);
     return;
   }
-  if (status === 200) renderRegs(body.registrations || []);
+  if (status === 200) {
+    myRegs = {};
+    (body.registrations || []).forEach(r => { myRegs[r.eventId] = r.registrationId; });
+    renderRegs(body.registrations || []);
+    // re-render event cards so registered events show the red Cancel button
+    renderEvents(Object.values(eventMap));
+  }
 }
 
 async function register(eventId) {

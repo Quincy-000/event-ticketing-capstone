@@ -182,6 +182,24 @@ resource "aws_api_gateway_integration" "get_registrations" {
   uri                     = module.registrations_lambda.invoke_arn
 }
 
+# CORS preflight for /registrations/{email} (GET now carries an Authorization
+# header after the auth upgrade — browsers preflight it)
+resource "aws_api_gateway_method" "options_registrations_email" {
+  rest_api_id   = aws_api_gateway_rest_api.this.id
+  resource_id   = aws_api_gateway_resource.registrations_email.id
+  http_method   = "OPTIONS"
+  authorization = "NONE"
+}
+
+resource "aws_api_gateway_integration" "options_registrations_email" {
+  rest_api_id             = aws_api_gateway_rest_api.this.id
+  resource_id             = aws_api_gateway_resource.registrations_email.id
+  http_method             = aws_api_gateway_method.options_registrations_email.http_method
+  integration_http_method = "POST"
+  type                    = "AWS_PROXY"
+  uri                     = module.registrations_lambda.invoke_arn
+}
+
 # /registration/{id}
 resource "aws_api_gateway_resource" "registration" {
   rest_api_id = aws_api_gateway_rest_api.this.id
@@ -241,6 +259,7 @@ resource "aws_api_gateway_deployment" "this" {
       aws_api_gateway_integration.delete_registration,
       aws_api_gateway_integration.options_register,
       aws_api_gateway_integration.options_registration_id,
+      aws_api_gateway_integration.options_registrations_email,
       aws_api_gateway_authorizer.cognito,
       aws_api_gateway_method.post_register,
       aws_api_gateway_method.get_registrations,
