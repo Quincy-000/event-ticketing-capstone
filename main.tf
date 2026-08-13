@@ -122,7 +122,8 @@ resource "aws_api_gateway_method" "post_register" {
   rest_api_id   = aws_api_gateway_rest_api.this.id
   resource_id   = aws_api_gateway_resource.register.id
   http_method   = "POST"
-  authorization = "NONE"
+  authorization = "COGNITO_USER_POOLS"
+  authorizer_id = aws_api_gateway_authorizer.cognito.id
 }
 
 resource "aws_api_gateway_integration" "post_register" {
@@ -168,7 +169,8 @@ resource "aws_api_gateway_method" "get_registrations" {
   rest_api_id   = aws_api_gateway_rest_api.this.id
   resource_id   = aws_api_gateway_resource.registrations_email.id
   http_method   = "GET"
-  authorization = "NONE"
+  authorization = "COGNITO_USER_POOLS"
+  authorizer_id = aws_api_gateway_authorizer.cognito.id
 }
 
 resource "aws_api_gateway_integration" "get_registrations" {
@@ -197,7 +199,8 @@ resource "aws_api_gateway_method" "delete_registration" {
   rest_api_id   = aws_api_gateway_rest_api.this.id
   resource_id   = aws_api_gateway_resource.registration_id.id
   http_method   = "DELETE"
-  authorization = "NONE"
+  authorization = "COGNITO_USER_POOLS"
+  authorizer_id = aws_api_gateway_authorizer.cognito.id
 }
 
 resource "aws_api_gateway_integration" "delete_registration" {
@@ -238,6 +241,10 @@ resource "aws_api_gateway_deployment" "this" {
       aws_api_gateway_integration.delete_registration,
       aws_api_gateway_integration.options_register,
       aws_api_gateway_integration.options_registration_id,
+      aws_api_gateway_authorizer.cognito,
+      aws_api_gateway_method.post_register,
+      aws_api_gateway_method.get_registrations,
+      aws_api_gateway_method.delete_registration,
     ]))
   }
 

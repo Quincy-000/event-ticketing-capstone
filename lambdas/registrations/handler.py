@@ -30,20 +30,21 @@ def response(status_code: int, body: dict) -> dict:
 
 # ---------- POST /register ----------
 def register(event):
+    claims = (event.get("requestContext") or {}).get("authorizer", {}).get("claims") or {}
+    caller_email = (claims.get("email") or "").lower()
+    if not caller_email:
+        return response(401, {"error": "Authentication required"})
+
     try:
         body = json.loads(event.get("body") or "{}")
     except json.JSONDecodeError:
         return response(400, {"error": "Invalid JSON body"})
 
     event_id = body.get("eventId")
-    email = body.get("email")
+    email = caller_email  # always from verified token
 
-    # input validation — Phase 4 requirement, and cheap insurance against
-    # garbage data reaching DynamoDB
-    if not event_id or not email:
-        return response(400, {"error": "eventId and email are required"})
-    if "@" not in email:
-        return response(400, {"error": "email is not valid"})
+    if not event_id:
+        return response(400, {"error": "eventId is required"})
 
     # Dedupe check: has this email already got a confirmed registration
     # for this event? Reduces double-submits in the common case.
@@ -107,11 +108,19 @@ def register(event):
 
 # ---------- GET /registrations/{email} ----------
 def get_by_email(event):
+    claims = (event.get("requestContext") or {}).get("authorizer", {}).get("claims") or {}
+    caller_email = (claims.get("email") or "").lower()
+    if not caller_email:
+        return response(401, {"error": "Authentication required"})
+
     # API Gateway v1 does NOT decode path params (e.g. %40 stays literal),
     # so decode here — handles both raw and percent-encoded callers.
-    email = unquote(event.get("pathParameters", {}).get("email") or "")
+    email = unquote(event.get("pathParameters", {}).get("email") or "").lower()
     if not email:
         return response(400, {"error": "email path parameter is required"})
+
+    if email != caller_email:
+        return response(403, {"error": "Access denied"})
 
     try:
         result = registrations_table.query(
@@ -127,6 +136,11 @@ def get_by_email(event):
 
 # ---------- DELETE /registration/{id} ----------
 def cancel(event):
+    claims = (event.get("requestContext") or {}).get("authorizer", {}).get("claims") or {}
+    caller_email = (claims.get("email") or "").lower()
+    if not caller_email:
+        return response(401, {"error": "Authentication required"})
+
     registration_id = event.get("pathParameters", {}).get("id")
     if not registration_id:
         return response(400, {"error": "id path parameter is required"})
@@ -136,6 +150,9 @@ def cancel(event):
         item = existing.get("Item")
         if not item:
             return response(404, {"error": "Registration not found"})
+
+        if item["email"].lower() != caller_email:
+            return response(403, {"error": "Access denied"})
 
         try:
             # Conditional cancel: only flip to "cancelled" if it's still

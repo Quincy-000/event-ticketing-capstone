@@ -40,25 +40,25 @@
   @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.35; } }
   .brand h1 { font-size: 20px; font-weight: 800; letter-spacing: -0.5px; }
   .brand p { font-size: 10px; color: var(--dim); margin-top: 3px; }
+  .header-right { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
   .api-badge {
     font-size: 10px; color: var(--emerald); border: 1px solid rgba(52,211,153,0.4);
     background: rgba(6,78,59,0.3); padding: 6px 12px; border-radius: 20px; letter-spacing: 0.5px;
   }
   .api-badge span { color: var(--muted); }
 
-  /* Email bar */
-  .email-bar {
-    display: flex; align-items: center; gap: 10px; background: var(--panel);
-    border: 1px solid var(--border); border-radius: 10px; padding: 12px 16px; margin-bottom: 28px; flex-wrap: wrap;
+  /* Auth chip */
+  .auth-chip {
+    display: flex; align-items: center; gap: 8px; font-size: 11px;
+    background: var(--panel); border: 1px solid var(--border); border-radius: 20px; padding: 6px 14px;
   }
-  .email-bar label { font-size: 11px; color: var(--dim); text-transform: uppercase; letter-spacing: 1px; }
-  .email-bar input {
-    flex: 1; min-width: 220px; background: #020617; border: 1px solid var(--border); color: var(--text);
-    font-family: inherit; font-size: 13px; padding: 8px 12px; border-radius: 8px; outline: none;
-    transition: border-color 0.2s;
+  .auth-chip .chip-email { color: var(--cyan); max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .auth-chip a, .auth-btn {
+    font-family: inherit; font-size: 11px; font-weight: 700; color: var(--emerald);
+    background: none; border: none; cursor: pointer; text-decoration: none; padding: 0;
   }
-  .email-bar input:focus { border-color: var(--cyan); }
-  .email-hint { font-size: 10px; color: var(--dim); }
+  .auth-chip a:hover, .auth-btn:hover { text-decoration: underline; }
+  .auth-chip .sep { color: var(--border); }
 
   /* Section headers */
   .section { display: flex; align-items: center; gap: 10px; margin: 28px 0 14px; }
@@ -96,7 +96,7 @@
     font-family: inherit; font-size: 12px; font-weight: 700; padding: 9px 14px; border-radius: 8px;
     border: 1px solid transparent; cursor: pointer; transition: all 0.15s; letter-spacing: 0.3px;
   }
-  .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+  .btn:disabled { opacity: 0.35; cursor: not-allowed; border-color: var(--border); background: var(--panel); color: var(--dim); }
   .btn-primary { background: var(--emerald); color: #022c22; }
   .btn-primary:hover:not(:disabled) { background: #6ee7b7; }
   .btn-ghost { background: transparent; color: var(--rose); border-color: rgba(251,113,133,0.4); }
@@ -149,14 +149,11 @@
         <p>Serverless registration · API Gateway → Lambda → DynamoDB</p>
       </div>
     </div>
-    <div class="api-badge">API <span id="api-status">checking…</span></div>
+    <div class="header-right">
+      <div class="api-badge">API <span id="api-status">checking…</span></div>
+      <div class="auth-chip" id="auth-chip"></div>
+    </div>
   </header>
-
-  <div class="email-bar">
-    <label>Your email</label>
-    <input type="email" id="email" placeholder="you@example.com" autocomplete="email">
-    <span class="email-hint">stored locally — used to register &amp; fetch your tickets</span>
-  </div>
 
   <div class="section">
     <div class="dot emerald"></div>
@@ -183,9 +180,57 @@
 <script>
 const API = "https://qhmocsswo9.execute-api.us-east-1.amazonaws.com/dev";
 
+const CONFIG = {
+  COGNITO_DOMAIN: "https://event-ticketing-quincy000.auth.us-east-1.amazoncognito.com",
+  CLIENT_ID: "REPLACE_AFTER_APPLY",
+  REDIRECT_URI: window.location.origin,
+};
+
 const $ = (id) => document.getElementById(id);
+let token = localStorage.getItem("et-token") || "";
 let email = localStorage.getItem("et-email") || "";
 let eventMap = {};
+
+// ---------- auth ----------
+function loginUrl() {
+  return `${CONFIG.COGNITO_DOMAIN}/login?client_id=${CONFIG.CLIENT_ID}&response_type=token&scope=openid+email+profile&redirect_uri=${encodeURIComponent(CONFIG.REDIRECT_URI)}`;
+}
+function logoutUrl() {
+  return `${CONFIG.COGNITO_DOMAIN}/logout?client_id=${CONFIG.CLIENT_ID}&logout_uri=${encodeURIComponent(CONFIG.REDIRECT_URI)}`;
+}
+
+function parseHash() {
+  if (!location.hash.includes("id_token")) return;
+  const params = new URLSearchParams(location.hash.slice(1));
+  const idToken = params.get("id_token");
+  if (!idToken) return;
+  try {
+    // Cognito id_tokens are unpadded base64url — atob() needs padding restored.
+    const b64 = idToken.split(".")[1].replace(/-/g, "+").replace(/_/g, "/");
+    const payload = JSON.parse(atob(b64 + "=".repeat((4 - (b64.length % 4)) % 4)));
+    token = idToken;
+    email = payload.email || "";
+    localStorage.setItem("et-token", token);
+    localStorage.setItem("et-email", email);
+  } catch (e) {}
+  history.replaceState(null, "", location.pathname + location.search);
+}
+
+function signOut() {
+  localStorage.removeItem("et-token");
+  localStorage.removeItem("et-email");
+  token = ""; email = "";
+  location.href = logoutUrl();
+}
+
+function renderAuthChip() {
+  const chip = $("auth-chip");
+  if (token && email) {
+    chip.innerHTML = `<span class="chip-email">Signed in as ${esc(email)}</span><span class="sep">|</span><button class="auth-btn" onclick="signOut()">Sign out</button>`;
+  } else {
+    chip.innerHTML = `<a href="${loginUrl()}">Sign in</a>`;
+  }
+}
 
 // ---------- toasts ----------
 function toast(msg, type = "info") {
@@ -198,6 +243,9 @@ function toast(msg, type = "info") {
 
 // ---------- fetch helpers ----------
 async function api(path, opts = {}) {
+  if (token) {
+    opts.headers = Object.assign({ "Authorization": "Bearer " + token }, opts.headers || {});
+  }
   const res = await fetch(API + path, opts);
   let body = {};
   try { body = await res.json(); } catch (e) {}
@@ -206,7 +254,8 @@ async function api(path, opts = {}) {
 
 async function checkApi() {
   try {
-    const { status } = await api("/events");
+    const res = await fetch(API + "/events");
+    const status = res.status;
     $("api-status").textContent = status === 200 ? "connected ✓" : "error (" + status + ")";
     $("api-status").style.color = status === 200 ? "#34d399" : "#fb7185";
   } catch (e) {
@@ -231,9 +280,12 @@ function renderEvents(events) {
     grid.innerHTML = `<div class="empty"><b>No events yet.</b><br>Deploy, then run <code>python seed.py</code> to populate the table.</div>`;
     return;
   }
+  const signedIn = !!(token && email);
   grid.innerHTML = events.map(e => {
     const pct = Math.min(100, Math.round((e.registeredCount / e.totalCapacity) * 100));
-    const disabled = statusClass(e.status) === "full" ? "disabled" : "";
+    const isFull = statusClass(e.status) === "full";
+    const disabled = (isFull || !signedIn) ? "disabled" : "";
+    const title = !signedIn ? `title="Sign in to register"` : "";
     return `
     <div class="card">
       <div class="card-top">
@@ -247,7 +299,7 @@ function renderEvents(events) {
         <span>capacity</span><b>${e.registeredCount} / ${e.totalCapacity} booked</b>
       </div>
       <div class="bar"><div class="bar-fill ${fillClass(e.status)}" style="width:${pct}%"></div></div>
-      <button class="btn btn-primary" ${disabled} onclick="register('${e.eventId}')">Register</button>
+      <button class="btn btn-primary" ${disabled} ${title} onclick="register('${e.eventId}')">Register</button>
     </div>`;
   }).join("");
 }
@@ -268,7 +320,7 @@ function renderRegs(regs) {
         <div class="reg-meta">${esc(r.registrationId)} · ${esc(r.registeredAt || "")}</div>
       </div>
       <span class="status-chip">${esc(r.status)}</span>
-      <button class="btn btn-ghost" onclick="cancel('${r.registrationId}', '${ev.eventName || r.eventId}')">Cancel</button>
+      <button class="btn btn-ghost" onclick="cancel('${r.registrationId}', '${esc(ev.eventName || r.eventId)}')">Cancel</button>
     </div>`;
   }).join("");
 }
@@ -277,16 +329,19 @@ function esc(s) { return String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;",
 
 // ---------- actions ----------
 async function refresh() {
-  const { status, body } = await api("/events");
+  const { status, body } = await fetch(API + "/events").then(async r => ({ status: r.status, body: await r.json().catch(() => ({})) }));
   if (status === 200) renderEvents(body.events || []);
   else toast("Failed to load events (" + status + ")", "error");
-  if (email) loadRegs();
+  if (token && email) loadRegs();
+  else {
+    $("regs-count").textContent = "";
+    $("regs").innerHTML = `<div class="empty">Sign in to see your tickets.</div>`;
+  }
 }
 
 async function loadRegs(retries = 2) {
   const enc = encodeURIComponent(email);
   const { status, body } = await api("/registrations/" + enc);
-  // GSI is eventually consistent — a fresh write can take a beat to appear.
   if (status === 200 && (!body.registrations || body.registrations.length === 0) && retries > 0) {
     setTimeout(() => loadRegs(retries - 1), 800);
     return;
@@ -294,17 +349,8 @@ async function loadRegs(retries = 2) {
   if (status === 200) renderRegs(body.registrations || []);
 }
 
-function needEmail() {
-  if (!email || !email.includes("@")) {
-    toast("Enter your email first (top bar)", "warn");
-    $("email").focus();
-    return false;
-  }
-  return true;
-}
-
 async function register(eventId) {
-  if (!needEmail()) return;
+  if (!token || !email) { toast("Sign in first", "warn"); return; }
   const ev = eventMap[eventId] || {};
   const { status, body } = await api("/register", {
     method: "POST",
@@ -323,6 +369,7 @@ async function register(eventId) {
 }
 
 async function cancel(regId, name) {
+  if (!token || !email) { toast("Sign in first", "warn"); return; }
   const { status, body } = await api("/registration/" + regId, { method: "DELETE" });
   if (status === 200) {
     toast(`Cancelled "${name}" — seat returned to the pool`, "success");
@@ -335,13 +382,8 @@ async function cancel(regId, name) {
 }
 
 // ---------- init ----------
-$("email").value = email;
-$("email").addEventListener("input", (e) => {
-  email = e.target.value.trim();
-  localStorage.setItem("et-email", email);
-  if (email.includes("@")) loadRegs();
-});
-
+parseHash();
+renderAuthChip();
 checkApi();
 refresh();
 </script>

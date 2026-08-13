@@ -1,0 +1,37 @@
+# set the CD_ROLE_ARN repository variable after terraform apply (output cd_role_arn)
+name: CD
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: production
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.CD_ROLE_ARN }}
+          aws-region: us-east-1
+          role-duration-seconds: 900
+
+      - name: Sync frontend
+        run: aws s3 sync frontend/ s3://event-ticketing-frontend-quincy-000 --delete
+
+      - name: Package and deploy events-handler
+        run: |
+          cd lambdas/events
+          zip /tmp/events-handler.zip handler.py
+          aws lambda update-function-code --function-name events-handler --zip-file fileb:///tmp/events-handler.zip
+
+      - name: Package and deploy registrations-handler
+        run: |
+          cd lambdas/registrations
+          zip /tmp/registrations-handler.zip handler.py
+          aws lambda update-function-code --function-name registrations-handler --zip-file fileb:///tmp/registrations-handler.zip

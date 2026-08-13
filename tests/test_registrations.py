@@ -46,17 +46,23 @@ def tables():
         yield ddb
 
 
+def _claims(email):
+    return {"requestContext": {"authorizer": {"claims": {"email": email}}}}
+
+
 def _post(handler, event_id, email):
     return handler.handler({
         "httpMethod": "POST",
         "body": json.dumps({"eventId": event_id, "email": email}),
+        **_claims(email),
     }, {})
 
 
-def _delete(handler, registration_id):
+def _delete(handler, registration_id, email="cancel@example.com"):
     return handler.handler({
         "httpMethod": "DELETE",
         "pathParameters": {"id": registration_id},
+        **_claims(email),
     }, {})
 
 
@@ -132,6 +138,7 @@ def test_get_by_email_excludes_cancelled(tables):
     result = h.handler({
         "httpMethod": "GET",
         "pathParameters": {"email": "mixed@example.com"},
+        **_claims("mixed@example.com"),
     }, {})
 
     assert result["statusCode"] == 200
@@ -190,9 +197,62 @@ def test_get_by_email_handles_percent_encoded_email(tables):
     result = h.handler({
         "httpMethod": "GET",
         "pathParameters": {"email": "encoded%40example.com"},
+        **_claims("encoded@example.com"),
     }, {})
 
     assert result["statusCode"] == 200
     regs = json.loads(result["body"])["registrations"]
     assert len(regs) == 1
     assert regs[0]["registrationId"] == "reg-enc"
+
+
+def test_register_without_auth_claims_returns_401(tables):
+    """No Cognito claims in the request context -> 401 before any write."""
+    h = load_handler("registrations")
+    result = h.handler({
+        "httpMethod": "POST",
+        "body": json.dumps({"eventId": "e-auth"}),
+    }, {})
+
+    assert result["statusCode"] == 401
+    assert "Authentication required" in json.loads(result["body"])["error"]
+
+
+def test_get_by_email_forbidden_when_path_email_mismatches_claims(tables):
+    """A user may only look up their OWN registrations."""
+    tables.Table("Events").put_item(Item={
+        "eventId": "e-own", "totalCapacity": 10, "registeredCount": 0,
+    })
+    tables.Table("Registrations").put_item(Item={
+        "registrationId": "reg-own", "eventId": "e-own",
+        "email": "owner@example.com", "status": "confirmed",
+    })
+
+    h = load_handler("registrations")
+    result = h.handler({
+        "httpMethod": "GET",
+        "pathParameters": {"email": "intruder@example.com"},
+        **_claims("other@example.com"),
+    }, {})
+
+    assert result["statusCode"] == 403
+
+
+def test_cancel_forbidden_for_another_users_registration(tables):
+    """Deleting someone else's registration -> 403; item and seat untouched."""
+    tables.Table("Events").put_item(Item={
+        "eventId": "e-x", "totalCapacity": 10, "registeredCount": 1,
+    })
+    tables.Table("Registrations").put_item(Item={
+        "registrationId": "reg-x", "eventId": "e-x",
+        "email": "owner@example.com", "status": "confirmed",
+    })
+
+    h = load_handler("registrations")
+    result = _delete(h, "reg-x", email="attacker@example.com")
+
+    assert result["statusCode"] == 403
+    item = tables.Table("Registrations").get_item(Key={"registrationId": "reg-x"})["Item"]
+    assert item["status"] == "confirmed"  # not cancelled
+    count = tables.Table("Events").get_item(Key={"eventId": "e-x"})["Item"]["registeredCount"]
+    assert count == 1  # seat not returned
