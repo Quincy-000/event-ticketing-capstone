@@ -26,7 +26,13 @@ resource "aws_iam_role" "cd" {
       Condition = {
         StringEquals = {
           "token.actions.githubusercontent.com:aud" = "sts.amazonaws.com"
-          "token.actions.githubusercontent.com:sub" = "repo:Quincy-000/event-ticketing-capstone:ref:refs/heads/main"
+          # GitHub mints an environment-scoped sub when the job runs under an
+          # environment (production) — and a ref-scoped sub for plain pushes.
+          # Accept both; both are pinned to this repo only.
+          "token.actions.githubusercontent.com:sub" = [
+            "repo:Quincy-000/event-ticketing-capstone:ref:refs/heads/main",
+            "repo:Quincy-000/event-ticketing-capstone:environment:production",
+          ]
         }
       }
     }]
