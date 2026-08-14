@@ -1,7 +1,13 @@
 resource "aws_iam_openid_connect_provider" "github" {
-  url             = "https://token.actions.githubusercontent.com"
-  client_id_list  = ["sts.amazonaws.com"]
-  thumbprint_list = ["6938fd4d98bab03faadb97b34396831e3780aea1", "1c58a3a8518e8759bf075b76b750d4f2df264fcd"]
+  url            = "https://token.actions.githubusercontent.com"
+  client_id_list = ["sts.amazonaws.com"]
+  thumbprint_list = [
+    # current GitHub signing cert (Let's Encrypt chain, verified live 2026-08)
+    "227203b5317f3818cab5b5ce596132bf36748c0e",
+    # historical thumbprints kept for rotation overlap
+    "6938fd4d98bab03faadb97b34396831e3780aea1",
+    "1c58a3a8518e8759bf075b76b750d4f2df264fcd",
+  ]
 }
 
 resource "aws_iam_role" "cd" {
@@ -41,9 +47,9 @@ resource "aws_iam_role" "cd" {
           Resource = ["*"]
         },
         {
-          Sid    = "TerraformBasics"
-          Effect = "Allow"
-          Action = ["sts:GetCallerIdentity"]
+          Sid      = "TerraformBasics"
+          Effect   = "Allow"
+          Action   = ["sts:GetCallerIdentity"]
           Resource = ["*"]
         },
       ]
