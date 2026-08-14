@@ -23,12 +23,11 @@ resource "aws_iam_role" "cd" {
       Condition = {
         StringEquals = {
           "token.actions.githubusercontent.com:aud" = "sts.amazonaws.com"
-          # GitHub mints an environment-scoped sub when the job runs under an
-          # environment (production) — and a ref-scoped sub for plain pushes.
-          # Accept both; both are pinned to this repo only.
+          # GitHub's immutable-IDs feature appends numeric owner/repo IDs to
+          # the sub (verified from the live token claims, 2026-08-14):
+          # repo:owner@<ownerId>/repo@<repoId>:environment:production
           "token.actions.githubusercontent.com:sub" = [
-            "repo:Quincy-000/event-ticketing-capstone:ref:refs/heads/main",
-            "repo:Quincy-000/event-ticketing-capstone:environment:production",
+            "repo:Quincy-000@109243447/event-ticketing-capstone@1325355614:environment:production",
           ]
         }
       }
