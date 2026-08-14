@@ -21,17 +21,12 @@ jobs:
           aws-region: us-east-1
           role-duration-seconds: 900
 
+      - uses: hashicorp/setup-terraform@v3
+
+      - name: Terraform apply (infra + Lambda code)
+        run: |
+          terraform init -input=false
+          terraform apply -auto-approve -input=false -no-color
+
       - name: Sync frontend
         run: aws s3 sync frontend/ s3://event-ticketing-frontend-quincy-000 --delete
-
-      - name: Package and deploy events-handler
-        run: |
-          cd lambdas/events
-          zip /tmp/events-handler.zip handler.py
-          aws lambda update-function-code --function-name events-handler --zip-file fileb:///tmp/events-handler.zip
-
-      - name: Package and deploy registrations-handler
-        run: |
-          cd lambdas/registrations
-          zip /tmp/registrations-handler.zip handler.py
-          aws lambda update-function-code --function-name registrations-handler --zip-file fileb:///tmp/registrations-handler.zip

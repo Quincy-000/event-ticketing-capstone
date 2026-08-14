@@ -22,29 +22,30 @@ resource "aws_iam_role" "cd" {
     }]
   })
 
+  # The CD role runs `terraform apply` (infra + Lambda code) and syncs the
+  # frontend. Scope: one statement per service the stack manages — broad
+  # within each service, nothing outside them.
   inline_policy {
     name = "cd-deploy"
     policy = jsonencode({
       Version = "2012-10-17"
       Statement = [
         {
-          Effect   = "Allow"
-          Action   = ["s3:ListBucket"]
-          Resource = [aws_s3_bucket.frontend.arn]
-        },
-        {
-          Effect   = "Allow"
-          Action   = ["s3:PutObject", "s3:DeleteObject"]
-          Resource = ["${aws_s3_bucket.frontend.arn}/*"]
-        },
-        {
+          Sid    = "TerraformManagedServices"
           Effect = "Allow"
-          Action = ["lambda:UpdateFunctionCode"]
-          Resource = [
-            module.events_lambda.function_arn,
-            module.registrations_lambda.function_arn,
+          Action = [
+            "apigateway:*", "lambda:*", "dynamodb:*", "s3:*",
+            "cognito-idp:*", "cloudfront:*", "iam:*", "sns:*",
+            "cloudwatch:*", "logs:*", "budgets:*",
           ]
-        }
+          Resource = ["*"]
+        },
+        {
+          Sid    = "TerraformBasics"
+          Effect = "Allow"
+          Action = ["sts:GetCallerIdentity"]
+          Resource = ["*"]
+        },
       ]
     })
   }
