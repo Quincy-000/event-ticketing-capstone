@@ -1,9 +1,9 @@
 # Event Registration & Ticketing System
 
-A fully serverless event registration API on AWS (API Gateway → Lambda → DynamoDB) that replaces a manual Forms + Excel workflow with a scalable, race-safe REST API. Infrastructure is defined with Terraform and verified by a GitHub Actions CI pipeline.
+A fully serverless event registration API on AWS (API Gateway → Lambda → DynamoDB) that replaces a manual Forms + Excel workflow with a scalable, race-safe REST API — now with **Cognito authentication**, **HTTPS delivery via CloudFront**, and a **keyless OIDC deploy pipeline**. Infrastructure is defined with Terraform and verified by GitHub Actions.
 
-**Live API (dev stage):** `https://qhmocsswo9.execute-api.us-east-1.amazonaws.com/dev` *(yours will differ — see `terraform output api_base_url`)*
-**Live frontend:** `http://event-ticketing-frontend-quincy-000.s3-website-us-east-1.amazonaws.com` *(static S3 site calling the API — see `terraform output frontend_url`)*
+**Live API (dev stage):** `https://qhmocsswo9.execute-api.us-east-1.amazonaws.com/dev` *(see `terraform output api_base_url`)*
+**Live frontend:** `https://d2uw2vu9i777ls.cloudfront.net` *(HTTPS via CloudFront — see `terraform output frontend_url`)*
 
 ---
 
@@ -17,35 +17,38 @@ A fully serverless event registration API on AWS (API Gateway → Lambda → Dyn
 
 | Layer | Technology |
 |---|---|
-| API | AWS API Gateway (REST v1, `AWS_PROXY` integrations) |
+| Auth | Amazon Cognito (user pool, hosted UI, implicit-flow OIDC tokens) |
+| API | AWS API Gateway (REST v1, `AWS_PROXY` integrations, `COGNITO_USER_POOLS` authorizer) |
 | Compute | AWS Lambda (Python 3.12) |
 | Data | DynamoDB (on-demand, 2 tables + 1 GSI) |
+| Delivery | S3 static site behind CloudFront (+ OAC, HTTPS) |
 | Observability | CloudWatch (alarms, metric filter) + SNS |
 | Cost tracking | AWS Budgets ($10/mo — forecast + actual alerts) |
 | IaC | Terraform (AWS ~> 6.0, archive ~> 2.0) |
-| CI/CD | GitHub Actions (pytest + terraform validate) |
-| Tests | pytest + moto (offline AWS mocking) |
+| CI/CD | GitHub Actions — CI (pytest + terraform validate) + CD (OIDC-assumed role, approval-gated deploy) |
+| Tests | pytest + moto (offline AWS mocking) — 13 tests |
 
 ## API Reference
 
-| Method | Path | Description | Success |
-|---|---|---|---|
-| `GET` | `/events` | List events with computed status | `200` |
-| `POST` | `/register` | Register (body: `eventId`, `email`) | `201` |
-| `GET` | `/registrations/{email}` | User's confirmed registrations | `200` |
-| `DELETE` | `/registration/{id}` | Cancel a registration | `200` |
+| Method | Path | Auth | Description | Success |
+|---|---|---|---|---|
+| `GET` | `/events` | public | List events with computed status | `200` |
+| `POST` | `/register` | **required** | Register — body `{eventId}`; identity from token | `201` |
+| `GET` | `/registrations/{email}` | **required** | Own confirmed registrations (403 if email ≠ token email) | `200` |
+| `DELETE` | `/registration/{id}` | **required** | Cancel own registration (403 if not owner) | `200` |
 
 ```bash
 BASE=https://qhmocsswo9.execute-api.us-east-1.amazonaws.com/dev
+TOKEN=<id_token from the Cognito hosted UI sign-in>
 
-curl $BASE/events
-curl -X POST $BASE/register -H "Content-Type: application/json" \
-  -d '{"eventId": "<eventId>", "email": "you@example.com"}'
-curl $BASE/registrations/you@example.com
-curl -X DELETE $BASE/registration/<registrationId>
+curl $BASE/events                                                # public
+curl -X POST $BASE/register -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" -d '{"eventId": "<eventId>"}'   # identity comes from the token
+curl $BASE/registrations/you@example.com -H "Authorization: Bearer $TOKEN"   # must match the token's email
+curl -X DELETE $BASE/registration/<registrationId> -H "Authorization: Bearer $TOKEN"
 ```
 
-Errors: `400` invalid input · `409` full/duplicate/already-cancelled · `404` not found · `405` bad method · `500` server error.
+Errors: `400` invalid input · `401` missing/invalid token · `403` cross-user access · `409` full/duplicate/already-cancelled · `404` not found · `405` bad method · `500` server error.
 
 ## Data Model
 
@@ -54,6 +57,11 @@ Errors: `400` invalid input · `409` full/duplicate/already-cancelled · `404` n
 
 ## Key Design Decisions
 
+- **Verified identity, not client input** — a registration is tied to the Cognito token's `email` claim; the API never trusts an email from the request body. Looking up or cancelling someone else's registration returns `403`.
+- **Auth via Cognito hosted UI** — sign-in happens at Cognito's hosted page (implicit flow); the frontend receives an `id_token` and sends it as a `Bearer` header. Passwords never touch the app code.
+- **HTTPS by necessity, good by design** — Cognito only allows HTTPS callback URLs, so the S3 site is fronted by CloudFront with an Origin Access Control; the bucket stays locked to the distribution.
+- **Keyless deploys (OIDC)** — the CD pipeline assumes a short-lived AWS role via GitHub OIDC, pinned by trust policy to this repo's `main` branch. No long-lived AWS keys in GitHub Secrets. Deploys are approval-gated.
+- **CORS done properly** — every authenticated endpoint exposes an `OPTIONS` preflight route that allows the `Authorization` header.
 - **Real capacity control** — `registeredCount` is incremented with a conditional write (`registeredCount < totalCapacity`), evaluated atomically by DynamoDB at commit time. Two simultaneous requests for the last seat: exactly one wins. Not a status badge.
 - **No VPC** — every dependency (DynamoDB, API Gateway) is a managed service; a VPC would add cost and latency with zero security benefit.
 - **Race-safe cancellation** — status flip is conditional (`confirmed` → `cancelled`), and the seat decrement requires `registeredCount > 0` — double-cancels return `409` and the counter can never underflow.
@@ -66,15 +74,17 @@ Errors: `400` invalid input · `409` full/duplicate/already-cancelled · `404` n
 ## Project Structure
 
 ```
-├── .github/workflows/ci.yml    # pytest + terraform validate on push/PR
+├── .github/workflows/
+│   ├── ci.yml                   # pytest + terraform validate on push/PR
+│   └── cd.yml                   # OIDC-assumed role → approval gate → deploy frontend + Lambdas
 ├── lambdas/
-│   ├── events/handler.py       # GET /events
-│   └── registrations/handler.py # register / list / cancel
-├── modules/                    # reusable dynamodb + lambda modules
-├── tests/                      # 10 tests (pytest + moto)
+│   ├── events/handler.py        # GET /events
+│   └── registrations/handler.py # register / list / cancel (token-based identity)
+├── modules/                     # reusable dynamodb + lambda modules
+├── tests/                       # 13 tests (pytest + moto)
 ├── docs/architecture-diagram.html
-├── budgets.tf · cloudwatch.tf · main.tf · versions.tf
-├── seed.py                     # sample event data
+├── budgets.tf · cloudfront.tf · cloudwatch.tf · cognito.tf · main.tf · oidc.tf · versions.tf
+├── seed.py                      # sample event data
 └── README.md
 ```
 
@@ -83,7 +93,7 @@ Errors: `400` invalid input · `409` full/duplicate/already-cancelled · `404` n
 ```bash
 python3 -m venv venv && source venv/bin/activate
 pip install boto3 moto pytest
-python -m pytest tests -q        # 10 passed (mocked AWS — no account needed)
+python -m pytest tests -q        # 13 passed (mocked AWS — no account needed)
 ```
 
 ## Deployment
@@ -96,7 +106,14 @@ python seed.py                      # populate Events (incl. capacity-1 demo eve
 
 ## CI/CD
 
-On every push/PR to `main`: **`test`** job runs the pytest suite (with `AWS_DEFAULT_REGION=us-east-1`), **`terraform-validate`** job runs `init -backend=false` + `validate`.
+**CI** — on every push/PR to `main`: the `test` job runs the pytest suite (13 tests, with `AWS_DEFAULT_REGION=us-east-1`), and the `terraform-validate` job runs `init -backend=false` + `validate`.
+
+**CD** — on push to `main`, a deploy job:
+1. Assumes the `event-ticketing-cd-role` via **GitHub OIDC** (`aws-actions/configure-aws-credentials`) — the trust policy pins the role to this repo, branch `main`; no AWS keys are stored in GitHub Secrets.
+2. Syncs `frontend/` to the S3 bucket (served over HTTPS by CloudFront).
+3. Packages and updates both Lambda functions (`events-handler`, `registrations-handler`).
+
+The job runs in the `production` environment with **required approvals** — nothing deploys without a human click. After `terraform apply`, set `CD_ROLE_ARN` (from `terraform output cd_role_arn`) as a repository variable.
 
 ## Monitoring
 
