@@ -8,7 +8,8 @@ A fully serverless event registration API on AWS (API Gateway → Lambda → Dyn
 ---
 
  ## Architecture
-![Event ticketing system architecture](./docs/event_ticketing_unified.png)
+<img width="3107" height="954" alt="image" src="https://github.com/user-attachments/assets/1e12ac48-7312-4886-a420-d27d6d25e1d2" />
+
 
 
 
