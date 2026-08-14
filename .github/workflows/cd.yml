@@ -15,13 +15,13 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      - uses: aws-actions/configure-aws-credentials@v4
+      - uses: aws-actions/configure-aws-credentials@v5
         with:
           role-to-assume: ${{ vars.CD_ROLE_ARN }}
           aws-region: us-east-1
           role-duration-seconds: 900
 
-      - uses: hashicorp/setup-terraform@v3
+      - uses: hashicorp/setup-terraform@v4
 
       - name: Terraform apply (infra + Lambda code)
         run: |
