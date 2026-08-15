@@ -67,11 +67,11 @@
     text-decoration: none; font-size: 11px; cursor: pointer; letter-spacing: 0.3px;
   }
   .btn-signin:hover { background: #6ee7b7; }
-  .account-menu { position: relative; }
+  .account-menu { position: relative; display: inline-block; }
   .account-trigger {
     display: flex; align-items: center; gap: 8px;
-    background: var(--panel); border: 1px solid var(--border); border-radius: 999px;
-    padding: 5px 14px 5px 6px; color: var(--text); cursor: pointer;
+    background: #10151b; border: 1px solid #2c333c; border-radius: 999px;
+    padding: 6px 14px; color: var(--text); cursor: pointer;
     font-family: inherit; font-size: 11px;
   }
   .account-trigger:hover { border-color: #334155; }
@@ -81,10 +81,19 @@
   }
   .email-truncated { max-width: 140px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .account-dropdown {
-    position: absolute; top: calc(100% + 8px); right: 0; z-index: 50;
-    background: var(--panel); border: 1px solid var(--border); border-radius: 10px;
-    padding: 10px; min-width: 220px; box-shadow: 0 8px 30px rgba(0,0,0,0.5);
+    position: absolute; top: calc(100% + 14px); right: 0; left: auto; z-index: 50;
+    background: #10151b; border: 1px solid #2c333c; border-radius: 10px;
+    padding: 14px; min-width: 220px; box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
     display: flex; flex-direction: column; gap: 10px;
+  }
+  .account-dropdown::before {
+    content: "";
+    position: absolute; top: -6px; right: 18px;
+    width: 12px; height: 12px;
+    background: #10151b;
+    border-left: 1px solid #2c333c;
+    border-top: 1px solid #2c333c;
+    transform: rotate(45deg);
   }
   .full-email { font-size: 11px; color: var(--muted); word-break: break-all; }
   .btn-signout {
