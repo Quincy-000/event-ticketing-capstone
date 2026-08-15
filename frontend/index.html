@@ -401,6 +401,17 @@ async function api(path, opts = {}) {
   const res = await fetch(API + path, opts);
   let body = {};
   try { body = await res.json(); } catch (e) {}
+  if (res.status === 401 && token) {
+    // Session expired — token no longer valid (Cognito id_tokens live ~1h and
+    // the frontend has no refresh flow). Clear state and bounce to login so
+    // the UI never claims "signed in" while every action 401s.
+    localStorage.removeItem("et-token");
+    localStorage.removeItem("et-email");
+    token = ""; email = "";
+    renderAuthChip();
+    toast("Session expired — please sign in again", "warn");
+    setTimeout(() => { location.href = loginUrl(); }, 1500);
+  }
   return { status: res.status, body };
 }
 
