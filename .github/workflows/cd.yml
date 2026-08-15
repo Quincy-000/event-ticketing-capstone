@@ -30,3 +30,6 @@ jobs:
 
       - name: Sync frontend
         run: aws s3 sync frontend/ s3://event-ticketing-frontend-quincy-000 --delete
+
+      - name: Invalidate CloudFront cache
+        run: aws cloudfront create-invalidation --distribution-id E3DE0ICNJKXP62 --paths "/*"
