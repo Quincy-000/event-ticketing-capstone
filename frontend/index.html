@@ -21,11 +21,11 @@
   }
   * { margin: 0; padding: 0; box-sizing: border-box; }
   body {
-    background: var(--bg);
+    background-color: #0a0f14;
     background-image:
-      linear-gradient(rgba(30,41,59,0.35) 1px, transparent 1px),
-      linear-gradient(90deg, rgba(30,41,59,0.35) 1px, transparent 1px);
-    background-size: 40px 40px;
+      radial-gradient(circle at 78% 10%, rgba(56, 224, 194, 0.10), transparent 40%),
+      radial-gradient(circle at 10% 60%, rgba(56, 224, 194, 0.05), transparent 35%);
+    background-attachment: fixed;
     color: var(--text);
     font-family: 'JetBrains Mono', monospace;
     min-height: 100vh;
@@ -60,28 +60,50 @@
   .auth-chip a:hover, .auth-btn:hover { text-decoration: underline; }
   .auth-chip .sep { color: var(--border); }
 
+  /* Sign-in button + account menu */
+  .btn-signin {
+    background: var(--emerald); color: #022c22; font-weight: 700;
+    padding: 8px 20px; border-radius: 8px; border: none;
+    text-decoration: none; font-size: 11px; cursor: pointer; letter-spacing: 0.3px;
+  }
+  .btn-signin:hover { background: #6ee7b7; }
+  .account-menu { position: relative; }
+  .account-trigger {
+    display: flex; align-items: center; gap: 8px;
+    background: var(--panel); border: 1px solid var(--border); border-radius: 999px;
+    padding: 5px 14px 5px 6px; color: var(--text); cursor: pointer;
+    font-family: inherit; font-size: 11px;
+  }
+  .account-trigger:hover { border-color: #334155; }
+  .avatar {
+    width: 22px; height: 22px; border-radius: 50%; background: var(--cyan); color: #022c22;
+    font-weight: 700; font-size: 12px; display: flex; align-items: center; justify-content: center;
+  }
+  .email-truncated { max-width: 140px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .account-dropdown {
+    position: absolute; top: calc(100% + 8px); right: 0; z-index: 50;
+    background: var(--panel); border: 1px solid var(--border); border-radius: 10px;
+    padding: 10px; min-width: 220px; box-shadow: 0 8px 30px rgba(0,0,0,0.5);
+    display: flex; flex-direction: column; gap: 10px;
+  }
+  .full-email { font-size: 11px; color: var(--muted); word-break: break-all; }
+  .btn-signout {
+    font-family: inherit; font-size: 11px; font-weight: 700; color: var(--rose);
+    background: transparent; border: 1px solid rgba(251,113,133,0.5); border-radius: 8px;
+    padding: 7px 12px; cursor: pointer;
+  }
+  .btn-signout:hover { background: rgba(136,19,55,0.3); }
+  .card.limited { border-color: rgba(217, 164, 65, 0.35); }
+  .empty-state { color: var(--dim); font-size: 14px; padding: 24px 0; }
+
   /* Hero */
   .hero {
     position: relative;
-    overflow: hidden;
+    background: transparent;
+    overflow: visible;
     display: flex; justify-content: space-between; align-items: center; gap: 48px;
     padding: 40px 0 56px; flex-wrap: wrap;
-    background-color: #0a0f14;
-    background-image:
-      radial-gradient(circle at 78% 15%, rgba(56, 224, 194, 0.14), transparent 45%),
-      radial-gradient(circle at 15% 85%, rgba(56, 224, 194, 0.06), transparent 40%),
-      radial-gradient(circle, rgba(255, 255, 255, 0.05) 1px, transparent 1px);
-    background-size: auto, auto, 24px 24px;
-    background-position: 0 0, 0 0, 0 0;
   }
-  .hero::before {
-    content: "";
-    position: absolute;
-    inset: 0;
-    background: radial-gradient(ellipse at center, transparent 40%, #0a0f14 90%);
-    pointer-events: none;
-  }
-  .hero > * { position: relative; z-index: 1; }
   .hero-copy { flex: 1; min-width: 300px; }
   .eyebrow {
     display: inline-flex; align-items: center; gap: 8px; font-size: 10px; letter-spacing: 0.05em;
@@ -117,7 +139,10 @@
   .section .count { font-size: 10px; color: var(--dim); }
 
   /* Event cards */
-  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 16px; }
+  .grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; }
+  @media (max-width: 640px) {
+    .grid { grid-template-columns: 1fr; }
+  }
   .card {
     background: var(--panel); border: 1px solid var(--border); border-radius: 12px; padding: 18px;
     display: flex; flex-direction: column; gap: 10px; transition: transform 0.15s, border-color 0.15s;
@@ -251,6 +276,9 @@
     <h2>My Registrations</h2>
     <span class="count" id="regs-count"></span>
   </div>
+  <div class="empty-state" id="registrations-empty" hidden>
+    <p>You haven't registered for anything yet — pick an event above to get started.</p>
+  </div>
   <div id="regs" class="regs"></div>
 
 </div>
@@ -306,11 +334,42 @@ function signOut() {
 function renderAuthChip() {
   const chip = $("auth-chip");
   if (token && email) {
-    chip.innerHTML = `<span class="chip-email">Signed in as ${esc(email)}</span><span class="sep">|</span><button class="auth-btn" onclick="signOut()">Sign out</button>`;
+    chip.innerHTML = `
+      <div class="account-menu">
+        <button class="account-trigger" onclick="toggleAccountMenu(event)">
+          <span class="avatar">${esc((email[0] || "?").toUpperCase())}</span>
+          <span class="email-truncated">${esc(truncateEmail(email))}</span>
+        </button>
+        <div class="account-dropdown" id="account-dropdown" hidden>
+          <span class="full-email">${esc(email)}</span>
+          <button class="btn-signout" onclick="signOut()">Sign out</button>
+        </div>
+      </div>`;
   } else {
-    chip.innerHTML = `<a href="${loginUrl()}">Sign in</a>`;
+    chip.innerHTML = `<a href="${loginUrl()}" class="btn-signin">Sign in</a>`;
   }
 }
+
+function truncateEmail(e) {
+  const at = e.indexOf("@");
+  if (at <= 0) return e;
+  const local = e.slice(0, at);
+  const domain = e.slice(at + 1);
+  const tld = domain.includes(".") ? domain.slice(domain.lastIndexOf(".") + 1) : domain;
+  const shortLocal = local.length > 14 ? local.slice(0, 14) + "…" : local;
+  return `${shortLocal}@…${tld}`;
+}
+
+function toggleAccountMenu(ev) {
+  ev.stopPropagation();
+  const dd = $("account-dropdown");
+  if (dd) dd.hidden = !dd.hidden;
+}
+
+document.addEventListener("click", (ev) => {
+  const dd = $("account-dropdown");
+  if (dd && !dd.hidden && !ev.target.closest(".account-menu")) dd.hidden = true;
+});
 
 // ---------- toasts ----------
 function toast(msg, type = "info") {
@@ -377,7 +436,7 @@ function renderEvents(events) {
           <button class="btn btn-primary" ${disabled} ${title} onclick="register('${e.eventId}')">Register</button>
         </div>`;
     return `
-    <div class="card">
+    <div class="card ${statusClass(e.status)}">
       <div class="card-top">
         <div>
           <h3>${esc(e.eventName)}</h3>
@@ -397,10 +456,13 @@ function renderEvents(events) {
 function renderRegs(regs) {
   $("regs-count").textContent = regs.length + " total";
   const el = $("regs");
+  const emptyEl = $("registrations-empty");
   if (!regs.length) {
-    el.innerHTML = `<div class="empty">No confirmed registrations for this email.</div>`;
+    el.innerHTML = "";
+    if (emptyEl) emptyEl.hidden = false;
     return;
   }
+  if (emptyEl) emptyEl.hidden = true;
   el.innerHTML = regs.map(r => {
     const ev = eventMap[r.eventId] || {};
     return `
@@ -426,6 +488,8 @@ async function refresh() {
   else {
     $("regs-count").textContent = "";
     $("regs").innerHTML = `<div class="empty">Sign in to see your tickets.</div>`;
+    const ee = $("registrations-empty");
+    if (ee) ee.hidden = true;
   }
 }
 
