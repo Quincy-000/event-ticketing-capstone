@@ -81,9 +81,9 @@
   }
   .email-truncated { max-width: 140px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .account-dropdown {
-    position: absolute; top: calc(100% + 14px); right: 0; left: auto; z-index: 50;
-    background: #10151b; border: 1px solid #2c333c; border-radius: 10px;
-    padding: 14px; min-width: 220px; box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+    position: absolute; top: calc(100% + 10px); right: 0; left: auto; z-index: 50;
+    background: #10151b; border: 1px solid #2c333c; border-radius: 14px;
+    padding: 14px; min-width: 220px; box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
     display: flex; flex-direction: column; gap: 10px;
   }
   .account-dropdown::before {
@@ -95,13 +95,17 @@
     border-top: 1px solid #2c333c;
     transform: rotate(45deg);
   }
-  .full-email { font-size: 11px; color: var(--muted); word-break: break-all; }
-  .btn-signout {
-    font-family: inherit; font-size: 11px; font-weight: 700; color: var(--rose);
-    background: transparent; border: 1px solid rgba(251,113,133,0.5); border-radius: 8px;
-    padding: 7px 12px; cursor: pointer;
+  .full-email {
+    font-size: 13px; color: #a3aab5; word-break: break-all;
+    padding-bottom: 10px; border-bottom: 1px solid #2c333c;
   }
-  .btn-signout:hover { background: rgba(136,19,55,0.3); }
+  .btn-signout {
+    font-family: inherit; font-size: 13px; font-weight: 600; color: #f56565;
+    background: transparent; border: 1px solid rgba(245, 101, 101, 0.4);
+    border-radius: 8px; padding: 8px 14px; cursor: pointer;
+    transition: background 0.15s ease;
+  }
+  .btn-signout:hover { background: rgba(245, 101, 101, 0.08); }
   .card.limited { border-color: rgba(217, 164, 65, 0.35); }
   .empty-state { color: var(--dim); font-size: 14px; padding: 24px 0; }
 
