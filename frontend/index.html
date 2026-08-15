@@ -61,7 +61,27 @@
   .auth-chip .sep { color: var(--border); }
 
   /* Hero */
-  .hero { display: flex; justify-content: space-between; align-items: center; gap: 48px; padding: 40px 0 56px; flex-wrap: wrap; }
+  .hero {
+    position: relative;
+    overflow: hidden;
+    display: flex; justify-content: space-between; align-items: center; gap: 48px;
+    padding: 40px 0 56px; flex-wrap: wrap;
+    background-color: #0a0f14;
+    background-image:
+      radial-gradient(circle at 78% 15%, rgba(56, 224, 194, 0.14), transparent 45%),
+      radial-gradient(circle at 15% 85%, rgba(56, 224, 194, 0.06), transparent 40%),
+      radial-gradient(circle, rgba(255, 255, 255, 0.05) 1px, transparent 1px);
+    background-size: auto, auto, 24px 24px;
+    background-position: 0 0, 0 0, 0 0;
+  }
+  .hero::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(ellipse at center, transparent 40%, #0a0f14 90%);
+    pointer-events: none;
+  }
+  .hero > * { position: relative; z-index: 1; }
   .hero-copy { flex: 1; min-width: 300px; }
   .eyebrow {
     display: inline-flex; align-items: center; gap: 8px; font-size: 10px; letter-spacing: 0.05em;
@@ -76,10 +96,6 @@
   .hero .hero-btn { padding: 12px 24px; font-size: 13px; border-radius: 8px; }
   .hero .btn-secondary { background: transparent; color: var(--text); border: 1px solid var(--border); font-weight: 600; text-decoration: none; }
   .hero .btn-secondary:hover { border-color: #334155; }
-  .stats-row { display: flex; gap: 32px; margin-top: 8px; flex-wrap: wrap; }
-  .stats-row div { display: flex; flex-direction: column; }
-  .stats-row strong { font-size: 20px; color: #f8fafc; }
-  .stats-row span { font-size: 10px; color: var(--dim); }
   .ticket-mock { position: relative; background: var(--panel); border: 1px solid var(--border); border-radius: 12px; padding: 20px; width: 280px; color: var(--text); flex-shrink: 0; }
   .ticket-label { font-size: 10px; letter-spacing: 0.1em; color: var(--dim); }
   .ticket-top h3 { margin: 6px 0 0; font-size: 16px; }
@@ -206,10 +222,6 @@
         <a href="#events" class="btn btn-primary hero-btn">Browse Events</a>
         <a href="https://github.com/Quincy-000/event-ticketing-capstone" class="hero-btn btn-secondary" target="_blank" rel="noopener">View source on GitHub</a>
       </div>
-      <div class="stats-row">
-        <div><strong id="stat-events">—</strong><span>Live events</span></div>
-        <div><strong>OIDC CI/CD</strong><span>Deploy pipeline</span></div>
-      </div>
     </div>
 
     <div class="ticket-mock">
@@ -241,12 +253,7 @@
   </div>
   <div id="regs" class="regs"></div>
 
-  <footer>
-    <a href="https://github.com/Quincy-000/event-ticketing-capstone" target="_blank">github.com/Quincy-000/event-ticketing-capstone</a>
-    &nbsp;·&nbsp; Azubi Africa AWS capstone · static frontend on S3
-  </footer>
 </div>
-
 <div class="toasts" id="toasts"></div>
 
 <script>
@@ -413,11 +420,8 @@ function esc(s) { return String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;",
 // ---------- actions ----------
 async function refresh() {
   const { status, body } = await fetch(API + "/events").then(async r => ({ status: r.status, body: await r.json().catch(() => ({})) }));
-  if (status === 200) {
-    renderEvents(body.events || []);
-    const se = $("stat-events");
-    if (se) se.textContent = (body.events || []).length;
-  } else toast("Failed to load events (" + status + ")", "error");
+  if (status === 200) renderEvents(body.events || []);
+  else toast("Failed to load events (" + status + ")", "error");
   if (token && email) loadRegs();
   else {
     $("regs-count").textContent = "";
